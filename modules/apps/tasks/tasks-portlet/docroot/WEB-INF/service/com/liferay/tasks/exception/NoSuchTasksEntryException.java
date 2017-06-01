@@ -15,28 +15,27 @@
  * Liferay Social Office. If not, see http://www.gnu.org/licenses/agpl-3.0.html.
  */
 
-package com.liferay.tasks;
+package com.liferay.tasks.exception;
 
-import com.liferay.portal.kernel.exception.PortalException;
+import com.liferay.portal.kernel.exception.NoSuchModelException;
 
 /**
- * @author Ryan Park
+ * @author Brian Wing Shun Chan
  */
-public class TasksEntryTitleException extends PortalException {
+public class NoSuchTasksEntryException extends NoSuchModelException {
 
-	public TasksEntryTitleException() {
-		super();
+	public NoSuchTasksEntryException() {
 	}
 
-	public TasksEntryTitleException(String msg) {
+	public NoSuchTasksEntryException(String msg) {
 		super(msg);
 	}
 
-	public TasksEntryTitleException(String msg, Throwable cause) {
+	public NoSuchTasksEntryException(String msg, Throwable cause) {
 		super(msg, cause);
 	}
 
-	public TasksEntryTitleException(Throwable cause) {
+	public NoSuchTasksEntryException(Throwable cause) {
 		super(cause);
 	}
 
