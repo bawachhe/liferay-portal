@@ -15,28 +15,27 @@
  * Liferay Social Office. If not, see http://www.gnu.org/licenses/agpl-3.0.html.
  */
 
-package com.liferay.tasks;
+package com.liferay.tasks.exception;
 
 import com.liferay.portal.kernel.exception.PortalException;
 
 /**
- * @author Brian Wing Shun Chan
+ * @author Ryan Park
  */
-public class TasksEntryDueDateException extends PortalException {
+public class TasksEntryTitleException extends PortalException {
 
-	public TasksEntryDueDateException() {
-		super();
+	public TasksEntryTitleException() {
 	}
 
-	public TasksEntryDueDateException(String msg) {
+	public TasksEntryTitleException(String msg) {
 		super(msg);
 	}
 
-	public TasksEntryDueDateException(String msg, Throwable cause) {
+	public TasksEntryTitleException(String msg, Throwable cause) {
 		super(msg, cause);
 	}
 
-	public TasksEntryDueDateException(Throwable cause) {
+	public TasksEntryTitleException(Throwable cause) {
 		super(cause);
 	}
 
