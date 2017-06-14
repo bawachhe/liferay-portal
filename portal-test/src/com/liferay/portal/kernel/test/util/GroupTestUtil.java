@@ -14,10 +14,17 @@
 
 package com.liferay.portal.kernel.test.util;
 
-import com.liferay.portal.kernel.cache.Lifecycle;
-import com.liferay.portal.kernel.cache.ThreadLocalCacheManager;
-import com.liferay.portal.kernel.lar.PortletDataHandlerKeys;
-import com.liferay.portal.kernel.staging.StagingUtil;
+import com.liferay.exportimport.kernel.configuration.ExportImportConfigurationParameterMapFactory;
+import com.liferay.exportimport.kernel.lar.PortletDataHandlerKeys;
+import com.liferay.exportimport.kernel.service.StagingLocalServiceUtil;
+import com.liferay.portal.kernel.cache.thread.local.Lifecycle;
+import com.liferay.portal.kernel.cache.thread.local.ThreadLocalCacheManager;
+import com.liferay.portal.kernel.model.Group;
+import com.liferay.portal.kernel.model.GroupConstants;
+import com.liferay.portal.kernel.model.Layout;
+import com.liferay.portal.kernel.service.GroupLocalServiceUtil;
+import com.liferay.portal.kernel.service.GroupServiceUtil;
+import com.liferay.portal.kernel.service.ServiceContext;
 import com.liferay.portal.kernel.test.randomizerbumpers.NumericStringRandomizerBumper;
 import com.liferay.portal.kernel.test.randomizerbumpers.UniqueStringRandomizerBumper;
 import com.liferay.portal.kernel.util.FriendlyURLNormalizerUtil;
@@ -26,14 +33,10 @@ import com.liferay.portal.kernel.util.PropsKeys;
 import com.liferay.portal.kernel.util.StringPool;
 import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.kernel.util.UnicodeProperties;
-import com.liferay.portal.model.Group;
-import com.liferay.portal.model.GroupConstants;
-import com.liferay.portal.model.Layout;
-import com.liferay.portal.service.GroupLocalServiceUtil;
-import com.liferay.portal.service.GroupServiceUtil;
-import com.liferay.portal.service.ServiceContext;
-import com.liferay.portal.service.StagingLocalServiceUtil;
 
+import java.io.Serializable;
+
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -160,6 +163,12 @@ public class GroupTestUtil {
 	}
 
 	public static void enableLocalStaging(Group group) throws Exception {
+		enableLocalStaging(group, TestPropsValues.getUserId());
+	}
+
+	public static void enableLocalStaging(Group group, long userId)
+		throws Exception {
+
 		ServiceContext serviceContext =
 			ServiceContextTestUtil.getServiceContext();
 
@@ -167,26 +176,25 @@ public class GroupTestUtil {
 		serviceContext.setAddGuestPermissions(true);
 		serviceContext.setScopeGroupId(group.getGroupId());
 
-		Map<String, String[]> parameters = StagingUtil.getStagingParameters();
+		Map<String, Serializable> attributes = serviceContext.getAttributes();
 
-		parameters.put(
+		attributes.putAll(
+			ExportImportConfigurationParameterMapFactory.buildParameterMap());
+
+		attributes.put(
 			PortletDataHandlerKeys.PORTLET_CONFIGURATION_ALL,
 			new String[] {Boolean.FALSE.toString()});
-		parameters.put(
+		attributes.put(
 			PortletDataHandlerKeys.PORTLET_DATA_ALL,
 			new String[] {Boolean.FALSE.toString()});
 
-		for (String parameterName : parameters.keySet()) {
-			serviceContext.setAttribute(
-				parameterName, parameters.get(parameterName)[0]);
-		}
-
 		StagingLocalServiceUtil.enableLocalStaging(
-			TestPropsValues.getUserId(), group, false, false, serviceContext);
+			userId, group, false, false, serviceContext);
 	}
 
 	public static Group updateDisplaySettings(
-			long groupId, Locale[] availableLocales, Locale defaultLocale)
+			long groupId, Collection<Locale> availableLocales,
+			Locale defaultLocale)
 		throws Exception {
 
 		UnicodeProperties typeSettingsProperties = new UnicodeProperties();
@@ -198,7 +206,8 @@ public class GroupTestUtil {
 		}
 
 		typeSettingsProperties.put(
-			"inheritLocales", String.valueOf(inheritLocales));
+			GroupConstants.TYPE_SETTINGS_KEY_INHERIT_LOCALES,
+			String.valueOf(inheritLocales));
 
 		if (availableLocales != null) {
 			typeSettingsProperties.put(

@@ -14,17 +14,19 @@
 
 package com.liferay.portal.search;
 
+import com.liferay.portal.kernel.model.Group;
+import com.liferay.portal.kernel.model.User;
 import com.liferay.portal.kernel.search.BaseIndexerPostProcessor;
 import com.liferay.portal.kernel.search.Document;
 import com.liferay.portal.kernel.search.Field;
 import com.liferay.portal.kernel.search.Hits;
+import com.liferay.portal.kernel.search.IndexSearcherHelperUtil;
 import com.liferay.portal.kernel.search.Indexer;
 import com.liferay.portal.kernel.search.IndexerPostProcessor;
 import com.liferay.portal.kernel.search.IndexerRegistryUtil;
 import com.liferay.portal.kernel.search.Query;
 import com.liferay.portal.kernel.search.QueryConfig;
 import com.liferay.portal.kernel.search.SearchContext;
-import com.liferay.portal.kernel.search.SearchEngineUtil;
 import com.liferay.portal.kernel.search.Sort;
 import com.liferay.portal.kernel.search.SortFactoryUtil;
 import com.liferay.portal.kernel.test.rule.AggregateTestRule;
@@ -35,12 +37,11 @@ import com.liferay.portal.kernel.test.util.GroupTestUtil;
 import com.liferay.portal.kernel.test.util.SearchContextTestUtil;
 import com.liferay.portal.kernel.test.util.UserTestUtil;
 import com.liferay.portal.kernel.util.ArrayUtil;
+import com.liferay.portal.kernel.util.LocaleUtil;
 import com.liferay.portal.kernel.util.StringPool;
+import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.kernel.workflow.WorkflowConstants;
-import com.liferay.portal.model.Group;
-import com.liferay.portal.model.User;
 import com.liferay.portal.test.rule.LiferayIntegrationTestRule;
-import com.liferay.portal.test.rule.MainServletTestRule;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -65,7 +66,7 @@ public class DocumentImplTest {
 	@Rule
 	public static final AggregateTestRule aggregateTestRule =
 		new AggregateTestRule(
-			new LiferayIntegrationTestRule(), MainServletTestRule.INSTANCE,
+			new LiferayIntegrationTestRule(),
 			SynchronousDestinationTestRule.INSTANCE);
 
 	@Before
@@ -107,7 +108,7 @@ public class DocumentImplTest {
 				"user", StringPool.BLANK);
 
 			User user = UserTestUtil.addUser(
-				screenName, false, firstName, "Smith", null);
+				screenName, LocaleUtil.getDefault(), firstName, "Smith", null);
 
 			_indexer.reindex(user);
 		}
@@ -234,6 +235,29 @@ public class DocumentImplTest {
 			"Smith", _SCREEN_NAMES_ASCENDING, _FIELD_LONG, Sort.LONG_TYPE);
 	}
 
+	protected void assertSort(
+			Sort sort, Query query, SearchContext searchContext,
+			String... screenNames)
+		throws Exception {
+
+		Hits results = IndexSearcherHelperUtil.search(searchContext, query);
+
+		List<String> searchResultValues = new ArrayList<>(screenNames.length);
+		List<String> screenNamesList = new ArrayList<>(screenNames.length);
+
+		for (int i = 0; i < screenNames.length; i++) {
+			Document document = results.doc(i);
+
+			searchResultValues.add(document.get(sort.getFieldName()));
+
+			screenNamesList.add(document.get("screenName"));
+		}
+
+		Assert.assertEquals(
+			StringUtil.merge(searchResultValues), StringUtil.merge(screenNames),
+			StringUtil.merge(screenNamesList));
+	}
+
 	protected SearchContext buildSearchContext(String keywords)
 		throws Exception {
 
@@ -241,7 +265,7 @@ public class DocumentImplTest {
 
 		searchContext.setAttribute(Field.STATUS, WorkflowConstants.STATUS_ANY);
 		searchContext.setKeywords(keywords);
-		searchContext.setGroupIds(new long[] {});
+		searchContext.setGroupIds(new long[0]);
 
 		QueryConfig queryConfig = searchContext.getQueryConfig();
 
@@ -294,7 +318,8 @@ public class DocumentImplTest {
 
 		Hits hits = _indexer.search(searchContext);
 
-		Assert.assertEquals(expectedHitsLength, hits.getLength());
+		Assert.assertEquals(
+			hits.toString(), expectedHitsLength, hits.getLength());
 	}
 
 	protected void checkSearchContext(
@@ -309,15 +334,7 @@ public class DocumentImplTest {
 
 		Query query = _indexer.getFullQuery(searchContext);
 
-		Hits results = SearchEngineUtil.search(searchContext, query);
-
-		Assert.assertEquals(screenNames.length, results.getLength());
-
-		for (int i = 0; i < screenNames.length; i++) {
-			Document document = results.doc(i);
-
-			Assert.assertEquals(screenNames[i], document.get("screenName"));
-		}
+		assertSort(sort, query, searchContext, screenNames);
 	}
 
 	protected void checkSearchContext(
@@ -401,50 +418,50 @@ public class DocumentImplTest {
 
 	protected void populateNumbers() {
 		populateNumbers(
-			"firstuser", 1e-11, 8e-5f, Integer.MAX_VALUE, Long.MIN_VALUE);
+			"firstuser", 1e-11, 8e-5F, Integer.MAX_VALUE, Long.MIN_VALUE);
 		populateNumberArrays(
 			"firstuser", new Double[] {1e-11, 2e-11, 3e-11},
-			new Float[] {8e-5f, 8e-5f, 8e-5f}, new Integer[] {1, 2, 3},
+			new Float[] {8e-5F, 8e-5F, 8e-5F}, new Integer[] {1, 2, 3},
 			new Long[] {-3L, -2L, -1L});
 
 		populateNumbers(
-			"seconduser", 3e-11, 7e-5f, Integer.MAX_VALUE - 1,
+			"seconduser", 3e-11, 7e-5F, Integer.MAX_VALUE - 1,
 			Long.MIN_VALUE + 1L);
 		populateNumberArrays(
 			"seconduser", new Double[] {1e-11, 2e-11, 5e-11},
-			new Float[] {9e-5f, 8e-5f, 7e-5f}, new Integer[] {1, 3, 4},
+			new Float[] {9e-5F, 8e-5F, 7e-5F}, new Integer[] {1, 3, 4},
 			new Long[] {-3L, -2L, -2L});
 
 		populateNumbers(
-			"thirduser", 5e-11, 6e-5f, Integer.MAX_VALUE - 2,
+			"thirduser", 5e-11, 6e-5F, Integer.MAX_VALUE - 2,
 			Long.MIN_VALUE + 2L);
 		populateNumberArrays(
 			"thirduser", new Double[] {1e-11, 3e-11, 2e-11},
-			new Float[] {9e-5f, 8e-5f, 9e-5f}, new Integer[] {2, 1, 1},
+			new Float[] {9e-5F, 8e-5F, 9e-5F}, new Integer[] {2, 1, 1},
 			new Long[] {-3L, -3L, -1L});
 
 		populateNumbers(
-			"fourthuser", 2e-11, 5e-5f, Integer.MAX_VALUE - 3,
+			"fourthuser", 2e-11, 5e-5F, Integer.MAX_VALUE - 3,
 			Long.MIN_VALUE + 3L);
 		populateNumberArrays(
 			"fourthuser", new Double[] {1e-11, 2e-11, 4e-11},
-			new Float[] {9e-5f, 9e-5f, 7e-5f}, new Integer[] {1, 2, 4},
+			new Float[] {9e-5F, 9e-5F, 7e-5F}, new Integer[] {1, 2, 4},
 			new Long[] {-3L, -3L, -2L});
 
 		populateNumbers(
-			"fifthuser", 4e-11, 4e-5f, Integer.MAX_VALUE - 4,
+			"fifthuser", 4e-11, 4e-5F, Integer.MAX_VALUE - 4,
 			Long.MIN_VALUE + 4L);
 		populateNumberArrays(
 			"fifthuser", new Double[] {1e-11, 3e-11, 1e-11},
-			new Float[] {9e-5f, 9e-5f, 8e-5f}, new Integer[] {1, 4, 4},
+			new Float[] {9e-5F, 9e-5F, 8e-5F}, new Integer[] {1, 4, 4},
 			new Long[] {-4L, -2L, -1L});
 
 		populateNumbers(
-			"sixthuser", 6e-11, 3e-5f, Integer.MAX_VALUE - 5,
+			"sixthuser", 6e-11, 3e-5F, Integer.MAX_VALUE - 5,
 			Long.MIN_VALUE + 5L);
 		populateNumberArrays(
 			"sixthuser", new Double[] {2e-11, 1e-11, 1e-11},
-			new Float[] {9e-5f, 9e-5f, 9e-5f}, new Integer[] {2, 1, 2},
+			new Float[] {9e-5F, 9e-5F, 9e-5F}, new Integer[] {2, 1, 2},
 			new Long[] {-4L, -2L, -2L});
 	}
 
@@ -520,7 +537,7 @@ public class DocumentImplTest {
 	@DeleteAfterTestRun
 	private Group _group;
 
-	private Indexer _indexer;
+	private Indexer<User> _indexer;
 	private IndexerPostProcessor _indexerPostProcessor;
 	private final Map<String, Integer[]> _integerArrays = new HashMap<>();
 	private final Map<String, Integer> _integers = new HashMap<>();

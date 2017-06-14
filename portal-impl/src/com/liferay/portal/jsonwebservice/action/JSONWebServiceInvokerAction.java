@@ -93,7 +93,7 @@ public class JSONWebServiceInvokerAction implements JSONWebServiceAction {
 			batchMode = true;
 		}
 		else if (command instanceof Map) {
-			list = new ArrayList<Object>(1);
+			list = new ArrayList<>(1);
 
 			list.add(command);
 
@@ -241,7 +241,7 @@ public class JSONWebServiceInvokerAction implements JSONWebServiceAction {
 		if (innerObject instanceof List) {
 			List<Object> innerList = (List<Object>)innerObject;
 
-			List<Object> newInnerList = new ArrayList<Object>(innerList.size());
+			List<Object> newInnerList = new ArrayList<>(innerList.size());
 
 			for (Object innerListElement : innerList) {
 				Map<String, Object> newInnerListElement = _convertObjectToMap(
@@ -459,8 +459,7 @@ public class JSONWebServiceInvokerAction implements JSONWebServiceAction {
 
 		Map<String, Object> map = _convertObjectToMap(statement, result, null);
 
-		Map<String, Object> whitelistMap = new HashMap<String, Object>(
-			whitelist.length);
+		Map<String, Object> whitelistMap = new HashMap<>(whitelist.length);
 
 		for (String key : whitelist) {
 			Object value = map.get(key);
@@ -509,14 +508,16 @@ public class JSONWebServiceInvokerAction implements JSONWebServiceAction {
 			statement.setMethod(assignment.substring(x + 1).trim());
 		}
 
-		HashMap<String, Object> parameterMap = new HashMap<String, Object>(
+		HashMap<String, Object> parameterMap = new HashMap<>(
 			statementBody.size());
 
 		statement.setParameterMap(parameterMap);
 
-		for (String key : statementBody.keySet()) {
+		for (Map.Entry<String, Object> entry : statementBody.entrySet()) {
+			String key = entry.getKey();
+
 			if (key.startsWith(StringPool.AT)) {
-				String value = (String)statementBody.get(key);
+				String value = (String)entry.getValue();
 
 				List<Flag> flags = statement.getFlags();
 
@@ -534,8 +535,7 @@ public class JSONWebServiceInvokerAction implements JSONWebServiceAction {
 				flags.add(flag);
 			}
 			else if (key.startsWith(StringPool.DOLLAR) || key.contains(".$")) {
-				Map<String, Object> map =
-					(Map<String, Object>)statementBody.get(key);
+				Map<String, Object> map = (Map<String, Object>)entry.getValue();
 
 				List<Statement> variableStatements =
 					statement.getVariableStatements();
@@ -552,7 +552,7 @@ public class JSONWebServiceInvokerAction implements JSONWebServiceAction {
 				variableStatements.add(variableStatement);
 			}
 			else {
-				Object value = statementBody.get(key);
+				Object value = entry.getValue();
 
 				parameterMap.put(CamelCaseUtil.normalizeCamelCase(key), value);
 			}
@@ -629,7 +629,9 @@ public class JSONWebServiceInvokerAction implements JSONWebServiceAction {
 					continue;
 				}
 
-				if (value.startsWith(name)) {
+				if (value.startsWith(name) &&
+					(value.indexOf(CharPool.PERIOD, name.length()) == -1)) {
+
 					Map<String, Object> parameterMap =
 						statement.getParameterMap();
 
@@ -659,10 +661,10 @@ public class JSONWebServiceInvokerAction implements JSONWebServiceAction {
 	private final HttpServletRequest _request;
 	private final List<Statement> _statements = new ArrayList<>();
 
-	private class Flag extends NameValue<String, String> {
+	private static class Flag extends NameValue<String, String> {
 	}
 
-	private class Statement {
+	private static class Statement {
 
 		public List<Flag> getFlags() {
 			return _flags;

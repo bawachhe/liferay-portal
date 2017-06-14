@@ -14,11 +14,11 @@
 
 package com.liferay.portal.tools;
 
+import com.liferay.portal.kernel.util.CharPool;
 import com.liferay.portal.kernel.util.FileComparator;
 import com.liferay.portal.kernel.util.GetterUtil;
 import com.liferay.portal.kernel.util.ListUtil;
 import com.liferay.portal.kernel.util.StringBundler;
-import com.liferay.portal.kernel.util.StringPool;
 import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.kernel.util.Validator;
 import com.liferay.portal.kernel.xml.Document;
@@ -101,8 +101,7 @@ public class PluginsEnvironmentBuilder {
 
 			if (content.contains(
 					"<import file=\"../build-common-shared.xml\" />") ||
-				content.contains(
-					"../tools/sdk/build-common-shared.xml\" />")) {
+				content.contains("../tools/sdk/build-common-shared.xml\" />")) {
 
 				sharedProject = true;
 			}
@@ -497,7 +496,7 @@ public class PluginsEnvironmentBuilder {
 		writeEclipseFiles(libDir, projectDir, dependencyJars);
 
 		String libDirPath = StringUtil.replace(
-			libDir.getPath(), StringPool.BACK_SLASH, StringPool.SLASH);
+			libDir.getPath(), CharPool.BACK_SLASH, CharPool.SLASH);
 
 		List<String> ignores = ListUtil.fromFile(
 			libDir.getCanonicalPath() + "/../.gitignore");
@@ -544,7 +543,7 @@ public class PluginsEnvironmentBuilder {
 		Set<String> extPortalJars = new LinkedHashSet<>();
 
 		String libDirPath = StringUtil.replace(
-			libDir.getPath(), StringPool.BACK_SLASH, StringPool.SLASH);
+			libDir.getPath(), CharPool.BACK_SLASH, CharPool.SLASH);
 
 		if (libDirPath.contains("/ext/")) {
 			FilenameFilter filenameFilter = new GlobFilenameFilter("*.jar");
@@ -563,6 +562,7 @@ public class PluginsEnvironmentBuilder {
 
 					globalJars.addAll(
 						ListUtil.sort(ListUtil.toList(fileNames)));
+
 					globalJars.removeAll(extGlobalJars);
 				}
 				else if (dirName.equals("portal")) {
@@ -574,6 +574,7 @@ public class PluginsEnvironmentBuilder {
 
 					portalJars.addAll(
 						ListUtil.sort(ListUtil.toList(fileNames)));
+
 					portalJars.removeAll(extPortalJars);
 				}
 			}
@@ -691,7 +692,7 @@ public class PluginsEnvironmentBuilder {
 			}
 		}
 
-		addClasspathEntry(sb, "/portal/portal-service/portal-service.jar");
+		addClasspathEntry(sb, "/portal/portal-kernel/portal-kernel.jar");
 		addClasspathEntry(sb, "/portal/util-bridges/util-bridges.jar");
 		addClasspathEntry(sb, "/portal/util-java/util-java.jar");
 
@@ -790,9 +791,9 @@ public class PluginsEnvironmentBuilder {
 					gitIgnores.add("/classes");
 					gitIgnores.add("/ext-impl.jar");
 				}
-				else if (sourceDirName.endsWith("ext-service/src")) {
+				else if (sourceDirName.endsWith("ext-kernel/src")) {
 					gitIgnores.add("/classes");
-					gitIgnores.add("/ext-service.jar");
+					gitIgnores.add("/ext-kernel.jar");
 				}
 				else if (sourceDirName.endsWith("ext-util-bridges/src")) {
 					gitIgnores.add("/classes");
@@ -837,7 +838,7 @@ public class PluginsEnvironmentBuilder {
 			String projectDirName, String projectName, boolean javaProject)
 		throws Exception {
 
-		StringBundler sb = new StringBundler(17);
+		StringBundler sb = new StringBundler(19);
 
 		sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\n");
 		sb.append("<projectDescription>\n");
@@ -877,7 +878,7 @@ public class PluginsEnvironmentBuilder {
 	private static final String _BRANCH = "master";
 
 	private static final String[] _SOURCE_DIR_NAMES = new String[] {
-		"docroot/WEB-INF/ext-impl/src", "docroot/WEB-INF/ext-service/src",
+		"docroot/WEB-INF/ext-impl/src", "docroot/WEB-INF/ext-kernel/src",
 		"docroot/WEB-INF/ext-util-bridges/src",
 		"docroot/WEB-INF/ext-util-java/src",
 		"docroot/WEB-INF/ext-util-taglib/src", "docroot/WEB-INF/service",

@@ -32,6 +32,7 @@ import com.liferay.portal.kernel.util.Digester;
 import com.liferay.portal.kernel.util.DigesterUtil;
 import com.liferay.portal.kernel.util.FileComparator;
 import com.liferay.portal.kernel.util.PwdGenerator;
+import com.liferay.portal.kernel.util.ReflectionUtil;
 import com.liferay.portal.kernel.util.StreamUtil;
 import com.liferay.portal.kernel.util.StringBundler;
 import com.liferay.portal.kernel.util.StringPool;
@@ -54,6 +55,7 @@ import java.io.Writer;
 
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.charset.Charset;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -64,10 +66,13 @@ import java.util.concurrent.Future;
 import org.apache.commons.compress.archivers.zip.UnsupportedZipFeatureException;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.exception.ExceptionUtils;
-import org.apache.pdfbox.exceptions.CryptographyException;
 import org.apache.poi.EncryptedDocumentException;
 import org.apache.tika.Tika;
+import org.apache.tika.config.TikaConfig;
 import org.apache.tika.exception.TikaException;
+import org.apache.tika.io.TikaInputStream;
+import org.apache.tika.metadata.Metadata;
+import org.apache.tika.parser.txt.UniversalEncodingDetector;
 import org.apache.tools.ant.DirectoryScanner;
 
 import org.mozilla.intl.chardet.nsDetector;
@@ -85,6 +90,49 @@ public class FileImpl implements com.liferay.portal.kernel.util.File {
 	}
 
 	@Override
+	public String appendParentheticalSuffix(String fileName, String suffix) {
+		String fileNameWithoutExtension = stripExtension(fileName);
+
+		String fileNameWithParentheticalSuffix =
+			StringUtil.appendParentheticalSuffix(
+				fileNameWithoutExtension, suffix);
+
+		String extension = getExtension(fileName);
+
+		if (Validator.isNull(extension)) {
+			return fileNameWithParentheticalSuffix;
+		}
+
+		StringBundler sb = new StringBundler(3);
+
+		sb.append(fileNameWithParentheticalSuffix);
+		sb.append(StringPool.PERIOD);
+		sb.append(extension);
+
+		return sb.toString();
+	}
+
+	@Override
+	public String appendSuffix(String fileName, String suffix) {
+		StringBundler sb = new StringBundler(4);
+
+		String fileNameWithoutExtension = stripExtension(fileName);
+
+		sb.append(fileNameWithoutExtension);
+
+		sb.append(suffix);
+
+		String extension = getExtension(fileName);
+
+		if (Validator.isNotNull(extension)) {
+			sb.append(StringPool.PERIOD);
+			sb.append(extension);
+		}
+
+		return sb.toString();
+	}
+
+	@Override
 	public void copyDirectory(File source, File destination)
 		throws IOException {
 
@@ -92,9 +140,7 @@ public class FileImpl implements com.liferay.portal.kernel.util.File {
 			return;
 		}
 
-		if (!destination.exists()) {
-			destination.mkdirs();
-		}
+		mkdirs(destination);
 
 		File[] fileArray = source.listFiles();
 
@@ -244,10 +290,10 @@ public class FileImpl implements com.liferay.portal.kernel.util.File {
 	}
 
 	@Override
-	public File createTempFolder() {
+	public File createTempFolder() throws IOException {
 		File file = new File(createTempFileName());
 
-		file.mkdirs();
+		mkdirs(file);
 
 		return file;
 	}
@@ -344,17 +390,8 @@ public class FileImpl implements com.liferay.portal.kernel.util.File {
 
 		String text = null;
 
-		ClassLoader portalClassLoader = ClassLoaderUtil.getPortalClassLoader();
-
-		ClassLoader contextClassLoader =
-			ClassLoaderUtil.getContextClassLoader();
-
 		try {
-			if (contextClassLoader != portalClassLoader) {
-				ClassLoaderUtil.setContextClassLoader(portalClassLoader);
-			}
-
-			Tika tika = new Tika();
+			Tika tika = new Tika(TikaConfigHolder._tikaConfig);
 
 			tika.setMaxStringLength(maxStringLength);
 
@@ -383,34 +420,52 @@ public class FileImpl implements com.liferay.portal.kernel.util.File {
 				text = future.get();
 			}
 			else {
-				text = tika.parseToString(is);
+				TikaInputStream tikaInputStream = TikaInputStream.get(is);
+
+				UniversalEncodingDetector universalEncodingDetector =
+					new UniversalEncodingDetector();
+
+				Metadata metadata = new Metadata();
+
+				Charset charset = universalEncodingDetector.detect(
+					tikaInputStream, metadata);
+
+				String contentEncoding = StringPool.BLANK;
+
+				if (charset != null) {
+					contentEncoding = charset.name();
+				}
+
+				if (!contentEncoding.equals(StringPool.BLANK)) {
+					metadata.set("Content-Encoding", contentEncoding);
+					metadata.set(
+						"Content-Type",
+						"text/plain; charset=" + contentEncoding);
+				}
+
+				text = tika.parseToString(tikaInputStream, metadata);
 			}
 		}
-		catch (Exception e) {
-			Throwable throwable = ExceptionUtils.getRootCause(e);
+		catch (Throwable t) {
+			Throwable throwable = ExceptionUtils.getRootCause(t);
 
-			if ((throwable instanceof CryptographyException) ||
-				(throwable instanceof EncryptedDocumentException) ||
-				(throwable instanceof UnsupportedZipFeatureException)) {
+			if (throwable instanceof EncryptedDocumentException ||
+				throwable instanceof UnsupportedZipFeatureException) {
 
 				if (_log.isWarnEnabled()) {
 					_log.warn(
 						"Unable to extract text from an encrypted file " +
-							fileName);
+							fileName,
+						t);
 				}
 			}
-			else if (e instanceof TikaException) {
+			else if (t instanceof TikaException) {
 				if (_log.isWarnEnabled()) {
-					_log.warn("Unable to extract text from " + fileName);
+					_log.warn("Unable to extract text from " + fileName, t);
 				}
 			}
 			else {
-				_log.error(e, e);
-			}
-		}
-		finally {
-			if (contextClassLoader != portalClassLoader) {
-				ClassLoaderUtil.setContextClassLoader(contextClassLoader);
+				_log.error(t, t);
 			}
 		}
 
@@ -716,10 +771,28 @@ public class FileImpl implements com.liferay.portal.kernel.util.File {
 	}
 
 	@Override
+	public void mkdirs(File file) throws IOException {
+		FileUtils.forceMkdir(file);
+	}
+
+	@Override
 	public void mkdirs(String pathName) {
 		File file = new File(pathName);
 
-		file.mkdirs();
+		if (file.exists() && file.isDirectory()) {
+			if (_log.isDebugEnabled()) {
+				_log.debug("Directory " + pathName + " already exists");
+			}
+
+			return;
+		}
+
+		try {
+			mkdirs(file);
+		}
+		catch (IOException ioe) {
+			ReflectionUtil.throwException(ioe);
+		}
 	}
 
 	@Override
@@ -824,6 +897,24 @@ public class FileImpl implements com.liferay.portal.kernel.util.File {
 		else {
 			return fileName;
 		}
+	}
+
+	@Override
+	public String stripParentheticalSuffix(String fileName) {
+		StringBundler sb = new StringBundler(3);
+
+		String fileNameWithoutExtension = stripExtension(fileName);
+
+		sb.append(
+			StringUtil.stripParentheticalSuffix(fileNameWithoutExtension));
+
+		sb.append(StringPool.PERIOD);
+
+		String extension = getExtension(fileName);
+
+		sb.append(extension);
+
+		return sb.toString();
 	}
 
 	@Override
@@ -1020,7 +1111,7 @@ public class FileImpl implements com.liferay.portal.kernel.util.File {
 		write(new File(pathName, fileName), s, lazy, append);
 	}
 
-	protected void mkdirsParentFile(File file) {
+	protected void mkdirsParentFile(File file) throws IOException {
 		File parentFile = file.getParentFile();
 
 		if (parentFile == null) {
@@ -1028,9 +1119,7 @@ public class FileImpl implements com.liferay.portal.kernel.util.File {
 		}
 
 		try {
-			if (!parentFile.exists()) {
-				parentFile.mkdirs();
-			}
+			mkdirs(parentFile);
 		}
 		catch (SecurityException se) {
 
@@ -1046,7 +1135,10 @@ public class FileImpl implements com.liferay.portal.kernel.util.File {
 	};
 
 	private static final String[] _SAFE_FILE_NAME_2 = {
-		"_AMP_", "_CP_", "_OP_", "_SEM_"
+		PropsValues.DL_STORE_FILE_IMPL_SAFE_FILE_NAME_2_AMPERSAND,
+		PropsValues.DL_STORE_FILE_IMPL_SAFE_FILE_NAME_2_CLOSE_PARENTHESIS,
+		PropsValues.DL_STORE_FILE_IMPL_SAFE_FILE_NAME_2_OPEN_PARENTHESIS,
+		PropsValues.DL_STORE_FILE_IMPL_SAFE_FILE_NAME_2_SEMICOLON
 	};
 
 	private static final Log _log = LogFactoryUtil.getLog(FileImpl.class);
@@ -1062,7 +1154,7 @@ public class FileImpl implements com.liferay.portal.kernel.util.File {
 
 		@Override
 		public String call() throws ProcessException {
-			Tika tika = new Tika();
+			Tika tika = new Tika(TikaConfigHolder._tikaConfig);
 
 			try {
 				return tika.parseToString(
@@ -1076,6 +1168,21 @@ public class FileImpl implements com.liferay.portal.kernel.util.File {
 		private static final long serialVersionUID = 1L;
 
 		private final byte[] _data;
+
+	}
+
+	private static class TikaConfigHolder {
+
+		private static final TikaConfig _tikaConfig;
+
+		static {
+			try {
+				_tikaConfig = new TikaConfig();
+			}
+			catch (Exception e) {
+				throw new ExceptionInInitializerError(e);
+			}
+		}
 
 	}
 

@@ -67,13 +67,13 @@ public class StripDoctypeFilter {
 					int doctypeContent = readFromSource();
 
 					if (doctypeContent == '[') {
-						entityDeclaration = true;
+						_entityDeclaration = true;
 					}
 					else if (doctypeContent == ']') {
-						entityDeclaration = false;
+						_entityDeclaration = false;
 					}
 					else if (doctypeContent == '>') {
-						if (!entityDeclaration) {
+						if (!_entityDeclaration) {
 							_documentStarted = true;
 
 							return readFromSource();
@@ -91,6 +91,17 @@ public class StripDoctypeFilter {
 	}
 
 	public int read(byte[] bytes, int offset, int length) throws IOException {
+		if (_documentStarted && (length > _bufferLength)) {
+			int bufferLength = _bufferLength;
+
+			for (int i = 0; i < bufferLength; i++) {
+				bytes[offset++] = (byte)(readFromBuffer() & 0xFF);
+			}
+
+			return _inputStream.read(bytes, offset, length - bufferLength) +
+				bufferLength;
+		}
+
 		int read = 0;
 
 		for (read = 0; read < length; read++) {
@@ -104,13 +115,24 @@ public class StripDoctypeFilter {
 				return read;
 			}
 
-			bytes[offset + read] = (byte) (c & 0xFF);
+			bytes[offset + read] = (byte)(c & 0xFF);
 		}
 
 		return read;
 	}
 
 	public int read(char[] chars, int offset, int length) throws IOException {
+		if (_documentStarted && (length > _bufferLength)) {
+			int bufferLength = _bufferLength;
+
+			for (int i = 0; i < bufferLength; i++) {
+				chars[offset++] = (char)readFromBuffer();
+			}
+
+			return _reader.read(chars, offset, length - bufferLength) +
+				bufferLength;
+		}
+
 		int read = 0;
 
 		for (read = 0; read < length; read++) {
@@ -165,8 +187,8 @@ public class StripDoctypeFilter {
 	private int[] _buffer;
 	private int _bufferLength;
 	private boolean _documentStarted;
+	private boolean _entityDeclaration;
 	private final InputStream _inputStream;
 	private final Reader _reader;
-	private boolean entityDeclaration;
 
 }

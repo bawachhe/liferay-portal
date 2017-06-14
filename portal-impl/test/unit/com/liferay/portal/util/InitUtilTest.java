@@ -14,13 +14,29 @@
 
 package com.liferay.portal.util;
 
+import com.liferay.portal.kernel.cache.MultiVMPool;
+import com.liferay.portal.kernel.cache.SingleVMPool;
+import com.liferay.portal.kernel.test.ReflectionTestUtil;
 import com.liferay.portal.kernel.util.PropsKeys;
 import com.liferay.portal.kernel.util.StringPool;
 import com.liferay.portal.kernel.util.SystemProperties;
+import com.liferay.portal.test.log.CaptureAppender;
+import com.liferay.portal.test.log.Log4JLoggerTestUtil;
 import com.liferay.portal.test.rule.LogAssertionTestRule;
+import com.liferay.portal.tools.ToolDependencies;
+import com.liferay.registry.BasicRegistryImpl;
+import com.liferay.registry.Registry;
+import com.liferay.registry.RegistryUtil;
+
+import java.nio.file.Paths;
 
 import java.util.Arrays;
+import java.util.List;
 
+import org.apache.log4j.Level;
+import org.apache.log4j.spi.LoggingEvent;
+
+import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -42,14 +58,63 @@ public class InitUtilTest {
 		SystemProperties.set(
 			_RESOURCE_ACTIONS_READ_PORTLET_RESOURCES, StringPool.FALSE);
 
+		ReflectionTestUtil.setFieldValue(
+			PropsValues.class, "SPRING_INFRASTRUCTURE_CONFIGS", new String[0]);
+
 		_fileImpl.deltree(PropsValues.MODULE_FRAMEWORK_STATE_DIR);
 
-		try {
+		_fileImpl.mkdirs(PropsValues.MODULE_FRAMEWORK_BASE_DIR + "/static");
+
+		ToolDependencies.wireCaches();
+
+		Registry registry = RegistryUtil.getRegistry();
+
+		final MultiVMPool testMulitVMPool = registry.getService(
+			MultiVMPool.class);
+		final SingleVMPool testSingleVMPool = registry.getService(
+			SingleVMPool.class);
+
+		RegistryUtil.setRegistry(
+			new BasicRegistryImpl() {
+
+				@Override
+				public Registry setRegistry(Registry registry) {
+					registry.registerService(
+						MultiVMPool.class, testMulitVMPool);
+
+					registry.registerService(
+						SingleVMPool.class, testSingleVMPool);
+
+					return registry;
+				}
+
+			});
+
+		InitUtil.init();
+
+		ReflectionTestUtil.setFieldValue(InitUtil.class, "_initialized", false);
+
+		try (CaptureAppender captureAppender =
+				Log4JLoggerTestUtil.configureLog4JLogger(
+					"com.liferay.portal.bootstrap.ModuleFrameworkImpl",
+					Level.ERROR)) {
+
 			InitUtil.initWithSpring(
-				Arrays.asList(
-					"META-INF/management-spring.xml",
-					"META-INF/util-spring.xml"),
-				true);
+				Arrays.asList("META-INF/util-spring.xml"), true, true);
+
+			List<LoggingEvent> loggingEvents =
+				captureAppender.getLoggingEvents();
+
+			Assert.assertEquals(
+				loggingEvents.toString(), 1, loggingEvents.size());
+
+			LoggingEvent loggingEvent = loggingEvents.get(0);
+
+			Assert.assertEquals(
+				"Missing " +
+					Paths.get(
+						PropsValues.LIFERAY_LIB_PORTAL_DIR, "util-taglib.jar"),
+				loggingEvent.getRenderedMessage());
 		}
 		finally {
 			if (resourceActionsReadPortletResources == null) {
@@ -69,6 +134,8 @@ public class InitUtilTest {
 				SystemProperties.set(
 					_LOG4J_CONFIGURE_ON_STARTUP, log4jConfigureOnStartup);
 			}
+
+			InitUtil.stopRuntime();
 
 			InitUtil.stopModuleFramework();
 		}

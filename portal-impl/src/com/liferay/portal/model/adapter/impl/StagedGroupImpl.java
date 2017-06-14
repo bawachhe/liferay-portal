@@ -14,9 +14,9 @@
 
 package com.liferay.portal.model.adapter.impl;
 
-import com.liferay.portal.kernel.lar.StagedModelType;
-import com.liferay.portal.model.Group;
-import com.liferay.portal.model.adapter.StagedGroup;
+import com.liferay.exportimport.kernel.lar.StagedModelType;
+import com.liferay.portal.kernel.model.Group;
+import com.liferay.portal.kernel.model.adapter.StagedGroup;
 import com.liferay.portal.model.impl.GroupImpl;
 
 import java.io.Serializable;
@@ -24,8 +24,10 @@ import java.io.Serializable;
 import java.util.Date;
 
 /**
- * @author Daniel Kocsis
+ * @author     Daniel Kocsis
+ * @deprecated As of 7.0.0
  */
+@Deprecated
 public class StagedGroupImpl extends GroupImpl implements StagedGroup {
 
 	public StagedGroupImpl(Group group) {
@@ -68,12 +70,12 @@ public class StagedGroupImpl extends GroupImpl implements StagedGroup {
 	}
 
 	@Override
-	public void setCreateDate(Date date) {
+	public void setCreateDate(Date createDate) {
 		throw new UnsupportedOperationException();
 	}
 
 	@Override
-	public void setModifiedDate(Date date) {
+	public void setModifiedDate(Date modifiedDate) {
 		throw new UnsupportedOperationException();
 	}
 

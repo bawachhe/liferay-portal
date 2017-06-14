@@ -97,6 +97,7 @@ public class FileResponseChannelHandlerTest {
 		channelHandler = _channelPipeline.first();
 
 		Assert.assertFalse(channelHandler instanceof FileUploadChannelHandler);
+
 		Assert.assertSame(fileResponse, fileUploadChannelHandler.fileResponse);
 		Assert.assertSame(fileResponse, noticeableFuture.get());
 
@@ -107,6 +108,7 @@ public class FileResponseChannelHandlerTest {
 		FileTime fileTime = Files.getLastModifiedTime(localFile);
 
 		Assert.assertEquals(lastModified, fileTime.toMillis());
+
 		Assert.assertArrayEquals(data, Files.readAllBytes(localFile));
 
 		Files.delete(localFile);
@@ -139,7 +141,7 @@ public class FileResponseChannelHandlerTest {
 
 			List<LogRecord> logRecords = captureHandler.getLogRecords();
 
-			Assert.assertEquals(1, logRecords.size());
+			Assert.assertEquals(logRecords.toString(), 1, logRecords.size());
 
 			LogRecord logRecord = logRecords.get(0);
 
@@ -178,7 +180,7 @@ public class FileResponseChannelHandlerTest {
 
 			List<LogRecord> logRecords = captureHandler.getLogRecords();
 
-			Assert.assertEquals(1, logRecords.size());
+			Assert.assertEquals(logRecords.toString(), 1, logRecords.size());
 
 			LogRecord logRecord = logRecords.get(0);
 

@@ -16,6 +16,7 @@ package com.liferay.portal.util;
 
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
+import com.liferay.portal.kernel.util.Http;
 import com.liferay.portal.kernel.util.PortalRunMode;
 import com.liferay.portal.kernel.util.ReflectionUtil;
 import com.liferay.portal.kernel.util.StringUtil;
@@ -40,30 +41,36 @@ import java.nio.file.StandardCopyOption;
  */
 public class JarUtil {
 
-	public static void downloadAndInstallJar(
-			URL url, String libPath, String name, URLClassLoader urlClassLoader)
+	public static Path downloadAndInstallJar(
+			URL url, String libPath, String name)
 		throws Exception {
 
-		if (PortalRunMode.isTestMode()) {
-			try {
-				InetAddress.getAllByName("mirrors");
+		String protocol = url.getProtocol();
 
-				String urlString = url.toExternalForm();
+		if (PortalRunMode.isTestMode() &&
+			(protocol.equals(Http.HTTP) || protocol.equals(Http.HTTPS))) {
 
-				String newURLString = StringUtil.replace(
-					urlString, "://", "://mirrors/");
+			String urlString = url.toExternalForm();
 
-				url = new URL(newURLString);
+			if (!urlString.contains("mirrors")) {
+				try {
+					InetAddress.getAllByName("mirrors");
 
-				if (_log.isDebugEnabled()) {
-					_log.debug(
-						"Swapping URL from " + urlString + " to " +
-							newURLString);
+					String newURLString = StringUtil.replace(
+						urlString, "://", "://mirrors/");
+
+					url = new URL(newURLString);
+
+					if (_log.isDebugEnabled()) {
+						_log.debug(
+							"Swapping URL from " + urlString + " to " +
+								newURLString);
+					}
 				}
-			}
-			catch (UnknownHostException uhe) {
-				if (_log.isDebugEnabled()) {
-					_log.debug("Unable to resolve \"mirrors\"");
+				catch (UnknownHostException uhe) {
+					if (_log.isDebugEnabled()) {
+						_log.debug("Unable to resolve \"mirrors\"");
+					}
 				}
 			}
 		}
@@ -81,6 +88,15 @@ public class JarUtil {
 		if (_log.isInfoEnabled()) {
 			_log.info("Downloaded " + url + " to " + path);
 		}
+
+		return path;
+	}
+
+	public static void downloadAndInstallJar(
+			URL url, String libPath, String name, URLClassLoader urlClassLoader)
+		throws Exception {
+
+		Path path = downloadAndInstallJar(url, libPath, name);
 
 		URI uri = path.toUri();
 

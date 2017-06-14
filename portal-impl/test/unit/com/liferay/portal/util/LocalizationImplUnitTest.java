@@ -67,7 +67,7 @@ public class LocalizationImplUnitTest extends PowerMockito {
 
 			List<LogRecord> logRecords = captureHandler.getLogRecords();
 
-			Assert.assertEquals(1, logRecords.size());
+			Assert.assertEquals(logRecords.toString(), 1, logRecords.size());
 
 			LogRecord logRecord = logRecords.get(0);
 
@@ -89,7 +89,7 @@ public class LocalizationImplUnitTest extends PowerMockito {
 		Locale[] array = new Locale[localeIds.length];
 
 		for (int i = 0; i < localeIds.length; i++) {
-			array[i] =  LocaleUtil.fromLanguageId(localeIds[i], false);
+			array[i] = LocaleUtil.fromLanguageId(localeIds[i], false);
 		}
 
 		return array;

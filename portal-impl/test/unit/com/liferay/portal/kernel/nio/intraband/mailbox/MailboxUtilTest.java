@@ -56,7 +56,7 @@ public class MailboxUtilTest {
 	@Rule
 	public static final AggregateTestRule aggregateTestRule =
 		new AggregateTestRule(
-			CodeCoverageAssertor.INSTANCE, AspectJNewEnvTestRule.INSTANCE);
+			AspectJNewEnvTestRule.INSTANCE, CodeCoverageAssertor.INSTANCE);
 
 	@AdviseWith(adviceClasses = {PropsUtilAdvice.class})
 	@Test
@@ -64,9 +64,7 @@ public class MailboxUtilTest {
 		new MailboxUtil();
 	}
 
-	@AdviseWith(
-		adviceClasses = {PropsUtilAdvice.class, ReceiptStubAdvice.class}
-	)
+	@AdviseWith(adviceClasses = PropsUtilAdvice.class)
 	@Test
 	public void testDepositMailWithReaperThreadDisabled() {
 		PropsUtilAdvice.setProps(
@@ -151,12 +149,12 @@ public class MailboxUtilTest {
 
 		overdueMailQueue.offer(createReceiptStub());
 
-		reaperThread.join(1000);
+		reaperThread.join();
 
 		Assert.assertSame(
-			reaperThread, RecorderUncaughtExceptionHandler._thread);
+			reaperThread, recorderUncaughtExceptionHandler._thread);
 
-		Throwable throwable = RecorderUncaughtExceptionHandler._throwable;
+		Throwable throwable = recorderUncaughtExceptionHandler._throwable;
 
 		Assert.assertSame(IllegalStateException.class, throwable.getClass());
 
@@ -183,6 +181,7 @@ public class MailboxUtilTest {
 		long receipt2 = MailboxUtil.depositMail(byteBuffer2);
 
 		Assert.assertSame(byteBuffer2, MailboxUtil.receiveMail(receipt2));
+
 		Assert.assertSame(byteBuffer1, MailboxUtil.receiveMail(receipt1));
 	}
 
@@ -206,6 +205,7 @@ public class MailboxUtilTest {
 		long receipt2 = MailboxUtil.depositMail(byteBuffer2);
 
 		Assert.assertSame(byteBuffer2, MailboxUtil.receiveMail(receipt2));
+
 		Assert.assertSame(byteBuffer1, MailboxUtil.receiveMail(receipt1));
 	}
 
@@ -273,7 +273,7 @@ public class MailboxUtilTest {
 			return proceedingJoinPoint.proceed();
 		}
 
-		private static boolean _throwException;
+		private static volatile boolean _throwException;
 
 	}
 
@@ -283,7 +283,9 @@ public class MailboxUtilTest {
 		Class<?> clazz = Class.forName(
 			mailboxUtilClassName.concat("$ReceiptStub"));
 
-		Constructor<?> constructor = clazz.getConstructor(long.class);
+		Constructor<?> constructor = clazz.getDeclaredConstructor(long.class);
+
+		constructor.setAccessible(true);
 
 		Object object = constructor.newInstance(0);
 
@@ -301,8 +303,8 @@ public class MailboxUtilTest {
 			_throwable = throwable;
 		}
 
-		private static volatile Thread _thread;
-		private static volatile Throwable _throwable;
+		private volatile Thread _thread;
+		private volatile Throwable _throwable;
 
 	}
 

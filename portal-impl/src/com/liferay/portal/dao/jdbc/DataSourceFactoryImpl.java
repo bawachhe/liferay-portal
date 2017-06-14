@@ -14,28 +14,41 @@
 
 package com.liferay.portal.dao.jdbc;
 
+import com.liferay.portal.dao.jdbc.pool.metrics.C3P0ConnectionPoolMetrics;
+import com.liferay.portal.dao.jdbc.pool.metrics.DBCPConnectionPoolMetrics;
+import com.liferay.portal.dao.jdbc.pool.metrics.HikariConnectionPoolMetrics;
+import com.liferay.portal.dao.jdbc.pool.metrics.TomcatConnectionPoolMetrics;
 import com.liferay.portal.dao.jdbc.util.DataSourceWrapper;
+import com.liferay.portal.dao.jdbc.util.RetryDataSourceWrapper;
 import com.liferay.portal.kernel.configuration.Filter;
+import com.liferay.portal.kernel.dao.db.DBManagerUtil;
+import com.liferay.portal.kernel.dao.db.DBType;
 import com.liferay.portal.kernel.dao.jdbc.DataSourceFactory;
+import com.liferay.portal.kernel.dao.jdbc.pool.metrics.ConnectionPoolMetrics;
 import com.liferay.portal.kernel.exception.SystemException;
 import com.liferay.portal.kernel.jndi.JNDIUtil;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
 import com.liferay.portal.kernel.security.pacl.DoPrivileged;
+import com.liferay.portal.kernel.util.CharPool;
+import com.liferay.portal.kernel.util.ClassLoaderUtil;
 import com.liferay.portal.kernel.util.PropertiesUtil;
 import com.liferay.portal.kernel.util.PropsKeys;
 import com.liferay.portal.kernel.util.ServerDetector;
 import com.liferay.portal.kernel.util.SortedProperties;
 import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.kernel.util.Validator;
-import com.liferay.portal.util.ClassLoaderUtil;
+import com.liferay.portal.spring.hibernate.DialectDetector;
 import com.liferay.portal.util.JarUtil;
 import com.liferay.portal.util.PropsUtil;
 import com.liferay.portal.util.PropsValues;
+import com.liferay.registry.Registry;
+import com.liferay.registry.RegistryUtil;
+import com.liferay.registry.ServiceReference;
+import com.liferay.registry.ServiceTracker;
+import com.liferay.registry.ServiceTrackerCustomizer;
 
 import com.mchange.v2.c3p0.ComboPooledDataSource;
-
-import java.lang.management.ManagementFactory;
 
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -45,6 +58,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import javax.management.MBeanServer;
+import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 
 import javax.naming.Context;
@@ -54,6 +68,7 @@ import javax.sql.DataSource;
 
 import jodd.bean.BeanUtil;
 
+import org.apache.commons.dbcp.BasicDataSource;
 import org.apache.commons.dbcp.BasicDataSourceFactory;
 import org.apache.tomcat.jdbc.pool.PoolProperties;
 import org.apache.tomcat.jdbc.pool.jmx.ConnectionPool;
@@ -82,6 +97,10 @@ public class DataSourceFactoryImpl implements DataSourceFactory {
 		else if (dataSource instanceof org.apache.tomcat.jdbc.pool.DataSource) {
 			org.apache.tomcat.jdbc.pool.DataSource tomcatDataSource =
 				(org.apache.tomcat.jdbc.pool.DataSource)dataSource;
+
+			if (_serviceTracker != null) {
+				_serviceTracker.close();
+			}
 
 			tomcatDataSource.close();
 		}
@@ -163,6 +182,15 @@ public class DataSourceFactoryImpl implements DataSourceFactory {
 			_log.debug("Created data source " + dataSource.getClass());
 		}
 
+		if (PropsValues.RETRY_DATA_SOURCE_MAX_RETRIES > 0) {
+			DBType dbType = DBManagerUtil.getDBType(
+				DialectDetector.getDialect(dataSource));
+
+			if (dbType == DBType.SYBASE) {
+				dataSource = new RetryDataSourceWrapper(dataSource);
+			}
+		}
+
 		return _pacl.getDataSource(dataSource);
 	}
 
@@ -199,11 +227,24 @@ public class DataSourceFactoryImpl implements DataSourceFactory {
 
 		comboPooledDataSource.setIdentityToken(identityToken);
 
+		String connectionPropertiesString = (String)properties.remove(
+			"connectionProperties");
+
+		if (connectionPropertiesString != null) {
+			Properties connectionProperties = PropertiesUtil.load(
+				StringUtil.replace(
+					connectionPropertiesString, CharPool.SEMICOLON,
+					CharPool.NEW_LINE));
+
+			comboPooledDataSource.setProperties(connectionProperties);
+		}
+
 		Enumeration<String> enu =
 			(Enumeration<String>)properties.propertyNames();
 
 		while (enu.hasMoreElements()) {
 			String key = enu.nextElement();
+
 			String value = properties.getProperty(key);
 
 			// Map org.apache.commons.dbcp.BasicDataSource to C3PO
@@ -255,13 +296,22 @@ public class DataSourceFactoryImpl implements DataSourceFactory {
 			}
 		}
 
+		registerConnectionPoolMetrics(
+			new C3P0ConnectionPoolMetrics(comboPooledDataSource));
+
 		return comboPooledDataSource;
 	}
 
 	protected DataSource initDataSourceDBCP(Properties properties)
 		throws Exception {
 
-		return BasicDataSourceFactory.createDataSource(properties);
+		DataSource dataSource = BasicDataSourceFactory.createDataSource(
+			properties);
+
+		registerConnectionPoolMetrics(
+			new DBCPConnectionPoolMetrics((BasicDataSource)dataSource));
+
+		return dataSource;
 	}
 
 	protected DataSource initDataSourceHikariCP(Properties properties)
@@ -278,6 +328,19 @@ public class DataSourceFactoryImpl implements DataSourceFactory {
 
 		Object hikariDataSource = hikariDataSourceClazz.newInstance();
 
+		String connectionPropertiesString = (String)properties.remove(
+			"connectionProperties");
+
+		if (connectionPropertiesString != null) {
+			Properties connectionProperties = PropertiesUtil.load(
+				StringUtil.replace(
+					connectionPropertiesString, CharPool.SEMICOLON,
+					CharPool.NEW_LINE));
+
+			BeanUtil.setProperty(
+				hikariDataSource, "dataSourceProperties", connectionProperties);
+		}
+
 		for (Map.Entry<Object, Object> entry : properties.entrySet()) {
 			String key = (String)entry.getKey();
 			String value = (String)entry.getValue();
@@ -286,11 +349,6 @@ public class DataSourceFactoryImpl implements DataSourceFactory {
 
 			if (StringUtil.equalsIgnoreCase(key, "url")) {
 				key = "jdbcUrl";
-			}
-			else if (StringUtil.equalsIgnoreCase(
-						key, "hikariConnectionCustomizerClassName")) {
-
-				key = "connectionCustomizerClassName";
 			}
 
 			// Ignore Liferay property
@@ -329,6 +387,9 @@ public class DataSourceFactoryImpl implements DataSourceFactory {
 				}
 			}
 		}
+
+		registerConnectionPoolMetrics(
+			new HikariConnectionPoolMetrics(hikariDataSource));
 
 		return (DataSource)hikariDataSource;
 	}
@@ -382,19 +443,17 @@ public class DataSourceFactoryImpl implements DataSourceFactory {
 			new org.apache.tomcat.jdbc.pool.DataSource(poolProperties);
 
 		if (poolProperties.isJmxEnabled()) {
-			org.apache.tomcat.jdbc.pool.ConnectionPool jdbcConnectionPool =
-				dataSource.createPool();
+			Registry registry = RegistryUtil.getRegistry();
 
-			ConnectionPool jmxConnectionPool = jdbcConnectionPool.getJmxPool();
+			_serviceTracker = registry.trackServices(
+				MBeanServer.class,
+				new MBeanServerServiceTrackerCustomizer(dataSource, poolName));
 
-			MBeanServer mBeanServer =
-				ManagementFactory.getPlatformMBeanServer();
-
-			ObjectName objectName = new ObjectName(
-				_TOMCAT_JDBC_POOL_OBJECT_NAME_PREFIX + poolName);
-
-			mBeanServer.registerMBean(jmxConnectionPool, objectName);
+			_serviceTracker.open();
 		}
+
+		registerConnectionPoolMetrics(
+			new TomcatConnectionPoolMetrics(dataSource));
 
 		return dataSource;
 	}
@@ -405,6 +464,7 @@ public class DataSourceFactoryImpl implements DataSourceFactory {
 			StringUtil.equalsIgnoreCase(key, "acquireRetryDelay") ||
 			StringUtil.equalsIgnoreCase(key, "connectionCustomizerClassName") ||
 			StringUtil.equalsIgnoreCase(key, "idleConnectionTestPeriod") ||
+			StringUtil.equalsIgnoreCase(key, "initialPoolSize") ||
 			StringUtil.equalsIgnoreCase(key, "maxIdleTime") ||
 			StringUtil.equalsIgnoreCase(key, "maxPoolSize") ||
 			StringUtil.equalsIgnoreCase(key, "minPoolSize") ||
@@ -413,9 +473,8 @@ public class DataSourceFactoryImpl implements DataSourceFactory {
 
 			return true;
 		}
-		else {
-			return false;
-		}
+
+		return false;
 	}
 
 	protected boolean isPropertyDBCP(String key) {
@@ -426,17 +485,16 @@ public class DataSourceFactoryImpl implements DataSourceFactory {
 
 			return true;
 		}
-		else {
-			return false;
-		}
+
+		return false;
 	}
 
 	protected boolean isPropertyHikariCP(String key) {
 		if (StringUtil.equalsIgnoreCase(key, "autoCommit") ||
+			StringUtil.equalsIgnoreCase(key, "connectionTestQuery") ||
 			StringUtil.equalsIgnoreCase(key, "connectionTimeout") ||
-			StringUtil.equalsIgnoreCase(
-				key, "hikariConnectionCustomizerClassName") ||
 			StringUtil.equalsIgnoreCase(key, "idleTimeout") ||
+			StringUtil.equalsIgnoreCase(key, "initializationFailFast") ||
 			StringUtil.equalsIgnoreCase(key, "maximumPoolSize") ||
 			StringUtil.equalsIgnoreCase(key, "maxLifetime") ||
 			StringUtil.equalsIgnoreCase(key, "minimumIdle") ||
@@ -444,9 +502,8 @@ public class DataSourceFactoryImpl implements DataSourceFactory {
 
 			return true;
 		}
-		else {
-			return false;
-		}
+
+		return false;
 	}
 
 	protected boolean isPropertyLiferay(String key) {
@@ -455,23 +512,34 @@ public class DataSourceFactoryImpl implements DataSourceFactory {
 
 			return true;
 		}
-		else {
-			return false;
-		}
+
+		return false;
 	}
 
 	protected boolean isPropertyTomcat(String key) {
 		if (StringUtil.equalsIgnoreCase(key, "fairQueue") ||
+			StringUtil.equalsIgnoreCase(key, "initialSize") ||
 			StringUtil.equalsIgnoreCase(key, "jdbcInterceptors") ||
 			StringUtil.equalsIgnoreCase(key, "jmxEnabled") ||
+			StringUtil.equalsIgnoreCase(key, "maxIdle") ||
+			StringUtil.equalsIgnoreCase(key, "testWhileIdle") ||
 			StringUtil.equalsIgnoreCase(key, "timeBetweenEvictionRunsMillis") ||
-			StringUtil.equalsIgnoreCase(key, "useEquals")) {
+			StringUtil.equalsIgnoreCase(key, "useEquals") ||
+			StringUtil.equalsIgnoreCase(key, "validationQuery")) {
 
 			return true;
 		}
-		else {
-			return false;
-		}
+
+		return false;
+	}
+
+	protected void registerConnectionPoolMetrics(
+		ConnectionPoolMetrics connectionPoolMetrics) {
+
+		Registry registry = RegistryUtil.getRegistry();
+
+		registry.registerService(
+			ConnectionPoolMetrics.class, connectionPoolMetrics);
 	}
 
 	protected void testDatabaseClass(Properties properties) throws Exception {
@@ -481,9 +549,7 @@ public class DataSourceFactoryImpl implements DataSourceFactory {
 			Class.forName(driverClassName);
 		}
 		catch (ClassNotFoundException cnfe) {
-			if (!ServerDetector.isGeronimo() && !ServerDetector.isJetty() &&
-				!ServerDetector.isTomcat()) {
-
+			if (!ServerDetector.isJetty() && !ServerDetector.isTomcat()) {
 				throw cnfe;
 			}
 
@@ -519,9 +585,7 @@ public class DataSourceFactoryImpl implements DataSourceFactory {
 			Class.forName(className);
 		}
 		catch (ClassNotFoundException cnfe) {
-			if (!ServerDetector.isGeronimo() && !ServerDetector.isJetty() &&
-				!ServerDetector.isTomcat()) {
-
+			if (!ServerDetector.isJetty() && !ServerDetector.isTomcat()) {
 				throw cnfe;
 			}
 
@@ -562,6 +626,73 @@ public class DataSourceFactoryImpl implements DataSourceFactory {
 		DataSourceFactoryImpl.class);
 
 	private static final PACL _pacl = new NoPACL();
+
+	private ServiceTracker<MBeanServer, MBeanServer> _serviceTracker;
+
+	private static class MBeanServerServiceTrackerCustomizer
+		implements ServiceTrackerCustomizer<MBeanServer, MBeanServer> {
+
+		public MBeanServerServiceTrackerCustomizer(
+				org.apache.tomcat.jdbc.pool.DataSource dataSource,
+				String poolName)
+			throws MalformedObjectNameException {
+
+			_dataSource = dataSource;
+			_objectName = new ObjectName(
+				_TOMCAT_JDBC_POOL_OBJECT_NAME_PREFIX + poolName);
+		}
+
+		@Override
+		public MBeanServer addingService(
+			ServiceReference<MBeanServer> serviceReference) {
+
+			Registry registry = RegistryUtil.getRegistry();
+
+			MBeanServer mBeanServer = registry.getService(serviceReference);
+
+			try {
+				org.apache.tomcat.jdbc.pool.ConnectionPool jdbcConnectionPool =
+					_dataSource.createPool();
+
+				ConnectionPool jmxConnectionPool =
+					jdbcConnectionPool.getJmxPool();
+
+				mBeanServer.registerMBean(jmxConnectionPool, _objectName);
+			}
+			catch (Exception e) {
+				_log.error(e, e);
+			}
+
+			return mBeanServer;
+		}
+
+		@Override
+		public void modifiedService(
+			ServiceReference<MBeanServer> serviceReference,
+			MBeanServer mBeanServer) {
+		}
+
+		@Override
+		public void removedService(
+			ServiceReference<MBeanServer> serviceReference,
+			MBeanServer mBeanServer) {
+
+			Registry registry = RegistryUtil.getRegistry();
+
+			registry.ungetService(serviceReference);
+
+			try {
+				mBeanServer.unregisterMBean(_objectName);
+			}
+			catch (Exception e) {
+				_log.error(e, e);
+			}
+		}
+
+		private final org.apache.tomcat.jdbc.pool.DataSource _dataSource;
+		private final ObjectName _objectName;
+
+	}
 
 	private static class NoPACL implements PACL {
 

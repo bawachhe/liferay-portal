@@ -17,6 +17,8 @@ package com.liferay.portal.plugin;
 import com.liferay.portal.kernel.exception.PortalException;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
+import com.liferay.portal.kernel.model.CompanyConstants;
+import com.liferay.portal.kernel.model.Plugin;
 import com.liferay.portal.kernel.plugin.License;
 import com.liferay.portal.kernel.plugin.PluginPackage;
 import com.liferay.portal.kernel.plugin.RemotePluginPackageRepository;
@@ -48,8 +50,6 @@ import com.liferay.portal.kernel.xml.Document;
 import com.liferay.portal.kernel.xml.DocumentException;
 import com.liferay.portal.kernel.xml.Element;
 import com.liferay.portal.kernel.xml.SAXReaderUtil;
-import com.liferay.portal.model.CompanyConstants;
-import com.liferay.portal.model.Plugin;
 import com.liferay.portal.util.PrefsPropsUtil;
 import com.liferay.portal.util.PropsValues;
 
@@ -485,7 +485,8 @@ public class PluginPackageUtil {
 	private void _indexPluginPackage(PluginPackage pluginPackage)
 		throws PortalException {
 
-		Indexer indexer = IndexerRegistryUtil.getIndexer(PluginPackage.class);
+		Indexer<PluginPackage> indexer = IndexerRegistryUtil.getIndexer(
+			PluginPackage.class);
 
 		indexer.reindex(pluginPackage);
 	}
@@ -534,8 +535,8 @@ public class PluginPackageUtil {
 	}
 
 	private boolean _isInstallationInProcess(String context) {
-		if (_installedPluginPackages.getInstallingPluginPackage(
-				context) != null) {
+		if (_installedPluginPackages.getInstallingPluginPackage(context) !=
+				null) {
 
 			return true;
 		}
@@ -640,9 +641,8 @@ public class PluginPackageUtil {
 			if (responseCode != HttpServletResponse.SC_OK) {
 				if (_log.isDebugEnabled()) {
 					_log.debug(
-						"A repository for version " +
-							ReleaseInfo.getVersion() + " was not found. " +
-								"Checking general repository");
+						"A repository for version " + ReleaseInfo.getVersion() +
+							" was not found. Checking general repository");
 				}
 
 				sb.setIndex(0);
@@ -677,6 +677,7 @@ public class PluginPackageUtil {
 
 				_repositoryCache.put(repositoryURL, repository);
 				_availableTagsCache.addAll(repository.getTags());
+
 				_lastUpdateDate = new Date();
 				_updateAvailable = null;
 
@@ -1044,7 +1045,7 @@ public class PluginPackageUtil {
 					_log.debug("Reading plugin package from MANIFEST.MF");
 				}
 
-				pluginPackage =_readPluginPackageServletManifest(
+				pluginPackage = _readPluginPackageServletManifest(
 					servletContext);
 			}
 		}
@@ -1288,7 +1289,8 @@ public class PluginPackageUtil {
 			}
 		}
 
-		Indexer indexer = IndexerRegistryUtil.getIndexer(PluginPackage.class);
+		Indexer<PluginPackage> indexer = IndexerRegistryUtil.getIndexer(
+			PluginPackage.class);
 
 		indexer.reindex(new String[0]);
 
@@ -1327,7 +1329,8 @@ public class PluginPackageUtil {
 
 		searchContext.setStart(start);
 
-		Indexer indexer = IndexerRegistryUtil.getIndexer(PluginPackage.class);
+		Indexer<PluginPackage> indexer = IndexerRegistryUtil.getIndexer(
+			PluginPackage.class);
 
 		return indexer.search(searchContext);
 	}

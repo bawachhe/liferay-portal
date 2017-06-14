@@ -14,7 +14,8 @@
 
 package com.liferay.mail.util;
 
-import com.liferay.mail.model.Filter;
+import com.liferay.mail.kernel.model.Filter;
+import com.liferay.mail.kernel.util.Hook;
 import com.liferay.portal.kernel.io.unsync.UnsyncBufferedReader;
 import com.liferay.portal.kernel.log.Log;
 import com.liferay.portal.kernel.log.LogFactoryUtil;
@@ -56,6 +57,7 @@ public class SendmailHook implements Hook {
 						String emailAddress = emailAddresses.get(i);
 
 						sb.append(emailAddress);
+
 						sb.append("\n");
 					}
 

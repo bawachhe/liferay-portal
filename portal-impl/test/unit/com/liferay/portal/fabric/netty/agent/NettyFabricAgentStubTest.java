@@ -171,11 +171,9 @@ public class NettyFabricAgentStubTest {
 						nettyFabricWorkerConfig.getId());
 				}
 
-			}
-		);
-		FabricWorker<String> fabricWorker = ReflectionTestUtil.invokeBridge(
-			nettyFabricAgentStub, "execute",
-			new Class<?>[] {ProcessConfig.class, ProcessCallable.class},
+			});
+
+		FabricWorker<String> fabricWorker = nettyFabricAgentStub.execute(
 			processConfig, processCallable);
 
 		Queue<Object> messages = _embeddedChannel.outboundMessages();
@@ -202,7 +200,7 @@ public class NettyFabricAgentStubTest {
 		Collection<? extends FabricWorker<?>> fabricWorkers =
 			nettyFabricAgentStub.getFabricWorkers();
 
-		Assert.assertEquals(1, fabricWorkers.size());
+		Assert.assertEquals(fabricWorkers.toString(), 1, fabricWorkers.size());
 		Assert.assertTrue(fabricWorkers.contains(fabricWorker));
 
 		NoticeableFuture<String> noticeableFuture =
@@ -219,7 +217,7 @@ public class NettyFabricAgentStubTest {
 		Map<Path, Path> outputPathMap = ReflectionTestUtil.getFieldValue(
 			nettyFabricWorkerStub, "_outputPathMap");
 
-		Assert.assertEquals(2, outputPathMap.size());
+		Assert.assertEquals(outputPathMap.toString(), 2, outputPathMap.size());
 
 		Path path1 = testFile1.toPath();
 
@@ -269,7 +267,7 @@ public class NettyFabricAgentStubTest {
 
 			Builder builder = new Builder();
 
-			FabricWorker<String> fabricWorker =  nettyFabricAgentStub.execute(
+			FabricWorker<String> fabricWorker = nettyFabricAgentStub.execute(
 				builder.build(),
 				new ReturnProcessCallable<String>("Test result"));
 
@@ -313,7 +311,7 @@ public class NettyFabricAgentStubTest {
 
 			Builder builder = new Builder();
 
-			FabricWorker<String> fabricWorker =  nettyFabricAgentStub.execute(
+			FabricWorker<String> fabricWorker = nettyFabricAgentStub.execute(
 				builder.build(),
 				new ReturnProcessCallable<String>("Test result"));
 
@@ -359,7 +357,7 @@ public class NettyFabricAgentStubTest {
 
 			Builder builder = new Builder();
 
-			FabricWorker<String> fabricWorker =  nettyFabricAgentStub.execute(
+			FabricWorker<String> fabricWorker = nettyFabricAgentStub.execute(
 				builder.build(),
 				new ReturnProcessCallable<String>("Test result"));
 
@@ -397,7 +395,7 @@ public class NettyFabricAgentStubTest {
 
 		Builder builder = new Builder();
 
-		FabricWorker<String> fabricWorker =  nettyFabricAgentStub.execute(
+		FabricWorker<String> fabricWorker = nettyFabricAgentStub.execute(
 			builder.build(), new ReturnProcessCallable<String>("Test result"));
 
 		NoticeableFuture<String> noticeableFuture =
@@ -428,7 +426,7 @@ public class NettyFabricAgentStubTest {
 
 		Builder builder = new Builder();
 
-		FabricWorker<String> fabricWorker =  nettyFabricAgentStub.execute(
+		FabricWorker<String> fabricWorker = nettyFabricAgentStub.execute(
 			builder.build(), new ReturnProcessCallable<String>("Test result"));
 
 		NoticeableFuture<String> noticeableFuture =

@@ -19,13 +19,18 @@
 <%
 String className = (String)request.getAttribute("liferay-ui:asset-categories-summary:className");
 long classPK = GetterUtil.getLong((String)request.getAttribute("liferay-ui:asset-categories-summary:classPK"));
-String paramName = GetterUtil.getString((String)request.getAttribute("liferay-ui:asset-tags-summary:paramName"), "categoryId");
+String paramName = GetterUtil.getString((String)request.getAttribute("liferay-ui:asset-categories-summary:paramName"), "categoryId");
 PortletURL portletURL = (PortletURL)request.getAttribute("liferay-ui:asset-categories-summary:portletURL");
+
+List<AssetCategory> categories = (List<AssetCategory>)request.getAttribute("liferay-ui:asset-categories-summary:assetCategories");
+
+if (ListUtil.isEmpty(categories)) {
+	categories = AssetCategoryServiceUtil.getCategories(className, classPK);
+}
 
 AssetEntry assetEntry = AssetEntryLocalServiceUtil.fetchEntry(className, classPK);
 
 List<AssetVocabulary> vocabularies = AssetVocabularyServiceUtil.getGroupVocabularies(PortalUtil.getCurrentAndAncestorSiteGroupIds((assetEntry != null) ? assetEntry.getGroupId() : scopeGroupId));
-List<AssetCategory> categories = AssetCategoryServiceUtil.getCategories(className, classPK);
 
 for (AssetVocabulary vocabulary : vocabularies) {
 	vocabulary = vocabulary.toEscapedModel();

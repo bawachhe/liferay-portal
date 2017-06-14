@@ -15,9 +15,11 @@
 package com.liferay.portal.module.framework;
 
 import com.liferay.portal.kernel.exception.PortalException;
-import com.liferay.portal.util.ClassLoaderUtil;
+import com.liferay.portal.kernel.util.ClassLoaderUtil;
 
 import java.io.InputStream;
+
+import java.net.URL;
 
 /**
  * This class is a simple wrapper in order to make the framework module running
@@ -39,12 +41,30 @@ public class ModuleFrameworkUtilAdapter {
 		return _moduleFramework.addBundle(location, inputStream);
 	}
 
+	public static URL getBundleResource(long bundleId, String name) {
+		return _moduleFramework.getBundleResource(bundleId, name);
+	}
+
 	public static Object getFramework() {
 		return _moduleFramework.getFramework();
 	}
 
 	public static String getState(long bundleId) throws PortalException {
 		return _moduleFramework.getState(bundleId);
+	}
+
+	public static void initFramework() throws Exception {
+		ClassLoader classLoader = ClassLoaderUtil.getContextClassLoader();
+
+		ClassLoaderUtil.setContextClassLoader(
+			ModuleFrameworkAdapterHelper.getClassLoader());
+
+		try {
+			_moduleFramework.initFramework();
+		}
+		finally {
+			ClassLoaderUtil.setContextClassLoader(classLoader);
+		}
 	}
 
 	public static void registerContext(Object context) {
@@ -61,7 +81,7 @@ public class ModuleFrameworkUtilAdapter {
 		_moduleFramework = moduleFramework;
 
 		_moduleFrameworkAdapterHelper.exec(
-			"setModuleFramework", new Class[] {ModuleFramework.class},
+			"setModuleFramework", new Class<?>[] {ModuleFramework.class},
 			_moduleFramework);
 	}
 
@@ -76,17 +96,7 @@ public class ModuleFrameworkUtilAdapter {
 	}
 
 	public static void startFramework() throws Exception {
-		ClassLoader classLoader = ClassLoaderUtil.getContextClassLoader();
-
-		ClassLoaderUtil.setContextClassLoader(
-			ModuleFrameworkAdapterHelper.getClassLoader());
-
-		try {
-			_moduleFramework.startFramework();
-		}
-		finally {
-			ClassLoaderUtil.setContextClassLoader(classLoader);
-		}
+		_moduleFramework.startFramework();
 	}
 
 	public static void startRuntime() throws Exception {
@@ -103,8 +113,8 @@ public class ModuleFrameworkUtilAdapter {
 		_moduleFramework.stopBundle(bundleId, options);
 	}
 
-	public static void stopFramework() throws Exception {
-		_moduleFramework.stopFramework();
+	public static void stopFramework(long timeout) throws Exception {
+		_moduleFramework.stopFramework(timeout);
 	}
 
 	public static void stopRuntime() throws Exception {
@@ -113,6 +123,10 @@ public class ModuleFrameworkUtilAdapter {
 
 	public static void uninstallBundle(long bundleId) throws PortalException {
 		_moduleFramework.uninstallBundle(bundleId);
+	}
+
+	public static void unregisterContext(Object context) {
+		_moduleFramework.unregisterContext(context);
 	}
 
 	public static void updateBundle(long bundleId) throws PortalException {

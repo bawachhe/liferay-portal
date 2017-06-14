@@ -15,6 +15,14 @@
 package com.liferay.portal.util;
 
 import com.liferay.portal.kernel.language.LanguageUtil;
+import com.liferay.portal.kernel.model.Group;
+import com.liferay.portal.kernel.model.Layout;
+import com.liferay.portal.kernel.model.User;
+import com.liferay.portal.kernel.model.UserGroup;
+import com.liferay.portal.kernel.model.VirtualLayoutConstants;
+import com.liferay.portal.kernel.service.GroupLocalServiceUtil;
+import com.liferay.portal.kernel.service.ServiceContext;
+import com.liferay.portal.kernel.service.UserGroupLocalServiceUtil;
 import com.liferay.portal.kernel.test.rule.AggregateTestRule;
 import com.liferay.portal.kernel.test.rule.DeleteAfterTestRun;
 import com.liferay.portal.kernel.test.util.CompanyTestUtil;
@@ -23,24 +31,18 @@ import com.liferay.portal.kernel.test.util.ServiceContextTestUtil;
 import com.liferay.portal.kernel.test.util.TestPropsValues;
 import com.liferay.portal.kernel.test.util.UserGroupTestUtil;
 import com.liferay.portal.kernel.util.LocaleUtil;
+import com.liferay.portal.kernel.util.PortalUtil;
 import com.liferay.portal.kernel.util.StringBundler;
 import com.liferay.portal.kernel.util.StringPool;
 import com.liferay.portal.kernel.util.Validator;
-import com.liferay.portal.model.Group;
-import com.liferay.portal.model.Layout;
-import com.liferay.portal.model.User;
-import com.liferay.portal.model.UserGroup;
-import com.liferay.portal.model.VirtualLayoutConstants;
-import com.liferay.portal.service.GroupLocalServiceUtil;
-import com.liferay.portal.service.ServiceContext;
-import com.liferay.portal.service.UserGroupLocalServiceUtil;
 import com.liferay.portal.test.rule.LiferayIntegrationTestRule;
-import com.liferay.portal.test.rule.MainServletTestRule;
 import com.liferay.portal.util.test.LayoutTestUtil;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -60,8 +62,7 @@ public class PortalImplLocalizedFriendlyURLTest {
 	@ClassRule
 	@Rule
 	public static final AggregateTestRule aggregateTestRule =
-		new AggregateTestRule(
-			new LiferayIntegrationTestRule(), MainServletTestRule.INSTANCE);
+		new LiferayIntegrationTestRule();
 
 	@BeforeClass
 	public static void setUpClass() throws Exception {
@@ -70,11 +71,9 @@ public class PortalImplLocalizedFriendlyURLTest {
 
 		CompanyTestUtil.resetCompanyLocales(
 			PortalUtil.getDefaultCompanyId(),
-			new Locale[] {
-				LocaleUtil.CANADA_FRENCH, LocaleUtil.SPAIN, LocaleUtil.US
-			},
-			LocaleUtil.US
-		);
+			Arrays.asList(
+				LocaleUtil.CANADA_FRENCH, LocaleUtil.SPAIN, LocaleUtil.US),
+			LocaleUtil.US);
 
 		_nameMap = new HashMap<>();
 
@@ -322,8 +321,7 @@ public class PortalImplLocalizedFriendlyURLTest {
 	}
 
 	@Test
-	public void
-			testWronglyLocalizedSiteLayoutPrivateFriendlyURLWithBlogsMapping1()
+	public void testWronglyLocalizedSiteLayoutPrivateFriendlyURLWithBlogsMapping1()
 		throws Exception {
 
 		testWronglyLocalizedSiteLayoutFriendlyURL(
@@ -331,8 +329,7 @@ public class PortalImplLocalizedFriendlyURLTest {
 	}
 
 	@Test
-	public void
-			testWronglyLocalizedSiteLayoutPrivateFriendlyURLWithBlogsMapping2()
+	public void testWronglyLocalizedSiteLayoutPrivateFriendlyURLWithBlogsMapping2()
 		throws Exception {
 
 		testWronglyLocalizedSiteLayoutFriendlyURL(
@@ -356,8 +353,7 @@ public class PortalImplLocalizedFriendlyURLTest {
 	}
 
 	@Test
-	public void
-			testWronglyLocalizedSiteLayoutPrivateFriendlyURLWithTagsMapping1()
+	public void testWronglyLocalizedSiteLayoutPrivateFriendlyURLWithTagsMapping1()
 		throws Exception {
 
 		testWronglyLocalizedSiteLayoutFriendlyURL(
@@ -365,8 +361,7 @@ public class PortalImplLocalizedFriendlyURLTest {
 	}
 
 	@Test
-	public void
-			testWronglyLocalizedSiteLayoutPrivateFriendlyURLWithTagsMapping2()
+	public void testWronglyLocalizedSiteLayoutPrivateFriendlyURLWithTagsMapping2()
 		throws Exception {
 
 		testWronglyLocalizedSiteLayoutFriendlyURL(
@@ -390,8 +385,7 @@ public class PortalImplLocalizedFriendlyURLTest {
 	}
 
 	@Test
-	public void
-			testWronglyLocalizedSiteLayoutPublicFriendlyURLWithBlogsMapping1()
+	public void testWronglyLocalizedSiteLayoutPublicFriendlyURLWithBlogsMapping1()
 		throws Exception {
 
 		testWronglyLocalizedSiteLayoutFriendlyURL(
@@ -399,8 +393,7 @@ public class PortalImplLocalizedFriendlyURLTest {
 	}
 
 	@Test
-	public void
-			testWronglyLocalizedSiteLayoutPublicFriendlyURLWithBlogsMapping2()
+	public void testWronglyLocalizedSiteLayoutPublicFriendlyURLWithBlogsMapping2()
 		throws Exception {
 
 		testWronglyLocalizedSiteLayoutFriendlyURL(
@@ -424,8 +417,7 @@ public class PortalImplLocalizedFriendlyURLTest {
 	}
 
 	@Test
-	public void
-			testWronglyLocalizedSiteLayoutPublicFriendlyURLWithTagsMapping1()
+	public void testWronglyLocalizedSiteLayoutPublicFriendlyURLWithTagsMapping1()
 		throws Exception {
 
 		testWronglyLocalizedSiteLayoutFriendlyURL(
@@ -433,8 +425,7 @@ public class PortalImplLocalizedFriendlyURLTest {
 	}
 
 	@Test
-	public void
-			testWronglyLocalizedSiteLayoutPublicFriendlyURLWithTagsMapping2()
+	public void testWronglyLocalizedSiteLayoutPublicFriendlyURLWithTagsMapping2()
 		throws Exception {
 
 		testWronglyLocalizedSiteLayoutFriendlyURL(
@@ -458,8 +449,7 @@ public class PortalImplLocalizedFriendlyURLTest {
 	}
 
 	@Test
-	public void
-			testWronglyLocalizedVirtualPrivateLayoutFriendlyURLWithBlogsMapping1()
+	public void testWronglyLocalizedVirtualPrivateLayoutFriendlyURLWithBlogsMapping1()
 		throws Exception {
 
 		testWronglyLocalizedVirtualLayoutFriendlyURL(
@@ -467,8 +457,7 @@ public class PortalImplLocalizedFriendlyURLTest {
 	}
 
 	@Test
-	public void
-			testWronglyLocalizedVirtualPrivateLayoutFriendlyURLWithBlogsMapping2()
+	public void testWronglyLocalizedVirtualPrivateLayoutFriendlyURLWithBlogsMapping2()
 		throws Exception {
 
 		testWronglyLocalizedVirtualLayoutFriendlyURL(
@@ -476,8 +465,7 @@ public class PortalImplLocalizedFriendlyURLTest {
 	}
 
 	@Test
-	public void
-			testWronglyLocalizedVirtualPrivateLayoutFriendlyURLWithParams1()
+	public void testWronglyLocalizedVirtualPrivateLayoutFriendlyURLWithParams1()
 		throws Exception {
 
 		testWronglyLocalizedVirtualLayoutFriendlyURL(
@@ -485,8 +473,7 @@ public class PortalImplLocalizedFriendlyURLTest {
 	}
 
 	@Test
-	public void
-			testWronglyLocalizedVirtualPrivateLayoutFriendlyURLWithParams2()
+	public void testWronglyLocalizedVirtualPrivateLayoutFriendlyURLWithParams2()
 		throws Exception {
 
 		testWronglyLocalizedVirtualLayoutFriendlyURL(
@@ -494,8 +481,7 @@ public class PortalImplLocalizedFriendlyURLTest {
 	}
 
 	@Test
-	public void
-			testWronglyLocalizedVirtualPrivateLayoutFriendlyURLWithTagsMapping1()
+	public void testWronglyLocalizedVirtualPrivateLayoutFriendlyURLWithTagsMapping1()
 		throws Exception {
 
 		testWronglyLocalizedVirtualLayoutFriendlyURL(
@@ -503,8 +489,7 @@ public class PortalImplLocalizedFriendlyURLTest {
 	}
 
 	@Test
-	public void
-			testWronglyLocalizedVirtualPrivateLayoutFriendlyURLWithTagsMapping2()
+	public void testWronglyLocalizedVirtualPrivateLayoutFriendlyURLWithTagsMapping2()
 		throws Exception {
 
 		testWronglyLocalizedVirtualLayoutFriendlyURL(
@@ -528,8 +513,7 @@ public class PortalImplLocalizedFriendlyURLTest {
 	}
 
 	@Test
-	public void
-			testWronglyLocalizedVirtualPublicLayoutFriendlyURLWithBlogsMapping1()
+	public void testWronglyLocalizedVirtualPublicLayoutFriendlyURLWithBlogsMapping1()
 		throws Exception {
 
 		testWronglyLocalizedVirtualLayoutFriendlyURL(
@@ -537,8 +521,7 @@ public class PortalImplLocalizedFriendlyURLTest {
 	}
 
 	@Test
-	public void
-			testWronglyLocalizedVirtualPublicLayoutFriendlyURLWithBlogsMapping2()
+	public void testWronglyLocalizedVirtualPublicLayoutFriendlyURLWithBlogsMapping2()
 		throws Exception {
 
 		testWronglyLocalizedVirtualLayoutFriendlyURL(
@@ -562,8 +545,7 @@ public class PortalImplLocalizedFriendlyURLTest {
 	}
 
 	@Test
-	public void
-			testWronglyLocalizedVirtualPublicLayoutFriendlyURLWithTagsMapping1()
+	public void testWronglyLocalizedVirtualPublicLayoutFriendlyURLWithTagsMapping1()
 		throws Exception {
 
 		testWronglyLocalizedVirtualLayoutFriendlyURL(
@@ -571,8 +553,7 @@ public class PortalImplLocalizedFriendlyURLTest {
 	}
 
 	@Test
-	public void
-			testWronglyLocalizedVirtualPublicLayoutFriendlyURLWithTagsMapping2()
+	public void testWronglyLocalizedVirtualPublicLayoutFriendlyURLWithTagsMapping2()
 		throws Exception {
 
 		testWronglyLocalizedVirtualLayoutFriendlyURL(
@@ -850,7 +831,7 @@ public class PortalImplLocalizedFriendlyURLTest {
 	private static final String _PUBLIC_GROUP_SERVLET_MAPPING =
 		PropsValues.LAYOUT_FRIENDLY_URL_PUBLIC_SERVLET_MAPPING;
 
-	private static Locale[] _availableLocales;
+	private static Set<Locale> _availableLocales;
 	private static Locale _defaultLocale;
 	private static Map<Locale, String> _friendlyURLMap;
 	private static Map<Locale, String> _nameMap;

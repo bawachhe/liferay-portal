@@ -14,23 +14,22 @@
 
 package com.liferay.portal.service.impl;
 
-import com.liferay.portal.RequiredLayoutPrototypeException;
 import com.liferay.portal.kernel.exception.PortalException;
+import com.liferay.portal.kernel.exception.RequiredLayoutPrototypeException;
+import com.liferay.portal.kernel.model.Group;
+import com.liferay.portal.kernel.model.GroupConstants;
+import com.liferay.portal.kernel.model.Layout;
+import com.liferay.portal.kernel.model.LayoutConstants;
+import com.liferay.portal.kernel.model.LayoutPrototype;
+import com.liferay.portal.kernel.model.ResourceConstants;
+import com.liferay.portal.kernel.model.SystemEventConstants;
+import com.liferay.portal.kernel.model.User;
+import com.liferay.portal.kernel.service.ServiceContext;
 import com.liferay.portal.kernel.systemevent.SystemEvent;
 import com.liferay.portal.kernel.util.GetterUtil;
 import com.liferay.portal.kernel.util.LocaleUtil;
 import com.liferay.portal.kernel.util.OrderByComparator;
 import com.liferay.portal.kernel.util.StringPool;
-import com.liferay.portal.model.Group;
-import com.liferay.portal.model.GroupConstants;
-import com.liferay.portal.model.Layout;
-import com.liferay.portal.model.LayoutConstants;
-import com.liferay.portal.model.LayoutPrototype;
-import com.liferay.portal.model.ResourceConstants;
-import com.liferay.portal.model.SystemEventConstants;
-import com.liferay.portal.model.User;
-import com.liferay.portal.security.permission.PermissionCacheUtil;
-import com.liferay.portal.service.ServiceContext;
 import com.liferay.portal.service.base.LayoutPrototypeLocalServiceBaseImpl;
 
 import java.util.Date;
@@ -78,11 +77,9 @@ public class LayoutPrototypeLocalServiceImpl
 
 		// Resources
 
-		if (userId > 0) {
-			resourceLocalService.addResources(
-				companyId, 0, userId, LayoutPrototype.class.getName(),
-				layoutPrototype.getLayoutPrototypeId(), false, false, false);
-		}
+		resourceLocalService.addResources(
+			companyId, 0, userId, LayoutPrototype.class.getName(),
+			layoutPrototype.getLayoutPrototypeId(), false, true, false);
 
 		// Group
 
@@ -116,22 +113,6 @@ public class LayoutPrototypeLocalServiceImpl
 	}
 
 	/**
-	 * @deprecated As of 6.2.0, replaced by {@link #addLayoutPrototype(long,
-	 *             long, Map, String, boolean, ServiceContext)}
-	 */
-	@Deprecated
-	@Override
-	public LayoutPrototype addLayoutPrototype(
-			long userId, long companyId, Map<Locale, String> nameMap,
-			String description, boolean active)
-		throws PortalException {
-
-		return addLayoutPrototype(
-			userId, companyId, nameMap, description, active,
-			new ServiceContext());
-	}
-
-	/**
 	 * @deprecated As of 7.0.0, replaced by {@link #addLayoutPrototype(long,
 	 *             long, Map, Map, boolean, ServiceContext)}
 	 */
@@ -161,7 +142,8 @@ public class LayoutPrototypeLocalServiceImpl
 
 		// Group
 
-		if (layoutPersistence.countByLayoutPrototypeUuid(
+		if (layoutPersistence.countByC_L(
+				layoutPrototype.getCompanyId(),
 				layoutPrototype.getUuid()) > 0) {
 
 			throw new RequiredLayoutPrototypeException();
@@ -181,10 +163,6 @@ public class LayoutPrototypeLocalServiceImpl
 		// Layout Prototype
 
 		layoutPrototypePersistence.remove(layoutPrototype);
-
-		// Permission cache
-
-		PermissionCacheUtil.clearCache();
 
 		return layoutPrototype;
 	}
@@ -215,18 +193,6 @@ public class LayoutPrototypeLocalServiceImpl
 					layoutPrototype);
 			}
 		}
-	}
-
-	/**
-	 * @deprecated As of 6.2.0, replaced by {@link
-	 *             #getLayoutPrototypeByUuidAndCompanyId(String, long)}
-	 */
-	@Deprecated
-	@Override
-	public LayoutPrototype getLayoutPrototypeByUuid(String uuid)
-		throws PortalException {
-
-		return layoutPrototypePersistence.findByUuid_First(uuid, null);
 	}
 
 	@Override
@@ -288,26 +254,12 @@ public class LayoutPrototypeLocalServiceImpl
 		Layout layout = layoutPrototype.getLayout();
 
 		layout.setModifiedDate(layoutPrototype.getModifiedDate());
+
 		layout.setNameMap(nameMap);
 
 		layoutPersistence.update(layout);
 
 		return layoutPrototype;
-	}
-
-	/**
-	 * @deprecated As of 6.2.0, replaced by {@link #updateLayoutPrototype(long,
-	 *             Map, String, boolean, ServiceContext)}
-	 */
-	@Deprecated
-	@Override
-	public LayoutPrototype updateLayoutPrototype(
-			long layoutPrototypeId, Map<Locale, String> nameMap,
-			String description, boolean active)
-		throws PortalException {
-
-		return updateLayoutPrototype(
-			layoutPrototypeId, nameMap, description, active, null);
 	}
 
 	/**

@@ -21,7 +21,9 @@ import com.liferay.portal.kernel.dao.orm.Query;
 import com.liferay.portal.kernel.dao.orm.ScrollableResults;
 import com.liferay.portal.kernel.security.pacl.DoPrivileged;
 import com.liferay.portal.kernel.security.pacl.NotPrivileged;
+import com.liferay.portal.kernel.util.ClassLoaderUtil;
 import com.liferay.portal.kernel.util.ListUtil;
+import com.liferay.portal.kernel.util.StringBundler;
 
 import java.io.Serializable;
 
@@ -113,6 +115,14 @@ public class QueryImpl implements Query {
 	public List<?> list(boolean copy, boolean unmodifiable)
 		throws ORMException {
 
+		// LPS-42478 is a workaround for HHH-8310. Remove this after upgrading
+		// to Hibernate 4.3.6+.
+
+		ClassLoader contextClassLoader =
+			ClassLoaderUtil.getContextClassLoader();
+
+		ClassLoaderUtil.setContextClassLoader(null);
+
 		try {
 			List<?> list = _query.list();
 
@@ -128,16 +138,31 @@ public class QueryImpl implements Query {
 		catch (Exception e) {
 			throw ExceptionTranslator.translate(e);
 		}
+		finally {
+			ClassLoaderUtil.setContextClassLoader(contextClassLoader);
+		}
 	}
 
 	@NotPrivileged
 	@Override
 	public ScrollableResults scroll() throws ORMException {
+
+		// LPS-42478 is a workaround for HHH-8310. Remove this after upgrading
+		// to Hibernate 4.3.6+.
+
+		ClassLoader contextClassLoader =
+			ClassLoaderUtil.getContextClassLoader();
+
+		ClassLoaderUtil.setContextClassLoader(null);
+
 		try {
 			return new ScrollableResultsImpl(_query.scroll());
 		}
 		catch (Exception e) {
 			throw ExceptionTranslator.translate(e);
+		}
+		finally {
+			ClassLoaderUtil.setContextClassLoader(contextClassLoader);
 		}
 	}
 
@@ -350,6 +375,21 @@ public class QueryImpl implements Query {
 		_query.setTimestamp(name, value);
 
 		return this;
+	}
+
+	@Override
+	public String toString() {
+		StringBundler sb = new StringBundler(7);
+
+		sb.append("{names=");
+		sb.append(Arrays.toString(_names));
+		sb.append(", _query=");
+		sb.append(String.valueOf(_query));
+		sb.append(", _strictName=");
+		sb.append(_strictName);
+		sb.append("}");
+
+		return sb.toString();
 	}
 
 	@NotPrivileged

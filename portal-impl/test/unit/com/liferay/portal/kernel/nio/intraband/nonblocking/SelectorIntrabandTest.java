@@ -79,6 +79,7 @@ public class SelectorIntrabandTest {
 	@Rule
 	public static final AggregateTestRule aggregateTestRule =
 		new AggregateTestRule(
+			AspectJNewEnvTestRule.INSTANCE,
 			new CodeCoverageAssertor() {
 
 				@Override
@@ -86,8 +87,7 @@ public class SelectorIntrabandTest {
 					assertClasses.add(SelectionKeyRegistrationReference.class);
 				}
 
-			},
-			AspectJNewEnvTestRule.INSTANCE);
+			});
 
 	@Before
 	public void setUp() throws Exception {
@@ -130,7 +130,7 @@ public class SelectorIntrabandTest {
 
 			pollingThread.join();
 
-			Assert.assertEquals(1, logRecords.size());
+			Assert.assertEquals(logRecords.toString(), 1, logRecords.size());
 
 			String pollingThreadName = pollingThread.getName();
 
@@ -179,6 +179,7 @@ public class SelectorIntrabandTest {
 		Pipe writePipe = Pipe.open();
 
 		GatheringByteChannel gatheringByteChannel = writePipe.sink();
+
 		ScatteringByteChannel scatteringByteChannel = readPipe.source();
 
 		SelectionKeyRegistrationReference registrationReference =
@@ -207,7 +208,7 @@ public class SelectorIntrabandTest {
 				Jdk14LogImplAdvice.waitUntilWarnCalled();
 			}
 
-			Assert.assertEquals(1, logRecords.size());
+			Assert.assertEquals(logRecords.toString(), 1, logRecords.size());
 
 			IntrabandTestUtil.assertMessageStartWith(
 				logRecords.get(0), "Dropped ownerless ACK response ");
@@ -273,7 +274,7 @@ public class SelectorIntrabandTest {
 				Jdk14LogImplAdvice.waitUntilWarnCalled();
 			}
 
-			Assert.assertEquals(1, logRecords.size());
+			Assert.assertEquals(logRecords.toString(), 1, logRecords.size());
 
 			IntrabandTestUtil.assertMessageStartWith(
 				logRecords.get(0), "Dropped ownerless response ");
@@ -360,7 +361,7 @@ public class SelectorIntrabandTest {
 				Jdk14LogImplAdvice.waitUntilWarnCalled();
 			}
 
-			Assert.assertEquals(1, logRecords.size());
+			Assert.assertEquals(logRecords.toString(), 1, logRecords.size());
 
 			IntrabandTestUtil.assertMessageStartWith(
 				logRecords.get(0), "Dropped unconcerned response ");
@@ -430,7 +431,7 @@ public class SelectorIntrabandTest {
 
 			Assert.assertEquals(0, dataByteBuffer.capacity());
 
-			Assert.assertEquals(1, logRecords.size());
+			Assert.assertEquals(logRecords.toString(), 1, logRecords.size());
 
 			IntrabandTestUtil.assertMessageStartWith(
 				logRecords.get(0), "Dropped ownerless request ");
@@ -487,7 +488,8 @@ public class SelectorIntrabandTest {
 			dataByteBuffer = receiveDatagram.getDataByteBuffer();
 
 			Assert.assertArrayEquals(_data, dataByteBuffer.array());
-			Assert.assertEquals(1, logRecords.size());
+
+			Assert.assertEquals(logRecords.toString(), 1, logRecords.size());
 
 			IntrabandTestUtil.assertMessageStartWith(
 				logRecords.get(0), "Unable to dispatch");
@@ -696,7 +698,7 @@ public class SelectorIntrabandTest {
 
 				Assert.fail();
 			}
-			catch (ClosedIntrabandException cibe) {
+			catch (ClosedIntrabandException cie) {
 			}
 		}
 		finally {
@@ -896,7 +898,7 @@ public class SelectorIntrabandTest {
 
 				Assert.fail();
 			}
-			catch (ClosedIntrabandException cibe) {
+			catch (ClosedIntrabandException cie) {
 			}
 		}
 	}
@@ -912,6 +914,7 @@ public class SelectorIntrabandTest {
 		Pipe writePipe = Pipe.open();
 
 		GatheringByteChannel gatheringByteChannel = writePipe.sink();
+
 		ScatteringByteChannel scatteringByteChannel = readPipe.source();
 
 		RegistrationReference registrationReference =
@@ -962,7 +965,7 @@ public class SelectorIntrabandTest {
 
 			Assert.assertSame(
 				attachment, recordCompletionHandler.getAttachment());
-			Assert.assertEquals(1, logRecords.size());
+			Assert.assertEquals(logRecords.toString(), 1, logRecords.size());
 
 			IntrabandTestUtil.assertMessageStartWith(
 				logRecords.get(0), "Removed timeout response waiting datagram");
@@ -983,6 +986,7 @@ public class SelectorIntrabandTest {
 
 			Assert.assertSame(
 				attachment, recordCompletionHandler.getAttachment());
+
 			Assert.assertTrue(logRecords.isEmpty());
 		}
 
@@ -1027,7 +1031,8 @@ public class SelectorIntrabandTest {
 					List<LogRecord> logRecords2 =
 						captureHandler2.getLogRecords();
 
-					Assert.assertEquals(1, logRecords2.size());
+					Assert.assertEquals(
+						logRecords2.toString(), 1, logRecords2.size());
 
 					LogRecord logRecord = logRecords2.get(0);
 
@@ -1040,7 +1045,7 @@ public class SelectorIntrabandTest {
 			}
 
 			Assert.assertFalse(selector.isOpen());
-			Assert.assertEquals(1, logRecords1.size());
+			Assert.assertEquals(logRecords1.toString(), 1, logRecords1.size());
 
 			IntrabandTestUtil.assertMessageStartWith(
 				logRecords1.get(0),
@@ -1061,8 +1066,7 @@ public class SelectorIntrabandTest {
 		Pipe writePipe = Pipe.open();
 
 		try (GatheringByteChannel gatheringByteChannel = writePipe.sink();
-				ScatteringByteChannel scatteringByteChannel =
-					readPipe.source()) {
+			ScatteringByteChannel scatteringByteChannel = readPipe.source()) {
 
 			SelectionKeyRegistrationReference registrationReference =
 				(SelectionKeyRegistrationReference)
@@ -1179,7 +1183,7 @@ public class SelectorIntrabandTest {
 			Queue<Datagram> sendingQueue = channelContext.getSendingQueue();
 
 			while ((writeSelectionKey.interestOps() & SelectionKey.OP_WRITE) !=
-				0);
+						0);
 
 			synchronized (writeSelectionKey) {
 				synchronized (selector) {
@@ -1266,31 +1270,31 @@ public class SelectorIntrabandTest {
 	@Aspect
 	public static class Jdk14LogImplAdvice {
 
-		public static volatile CountDownLatch _errorCalledCountDownLatch =
+		public static volatile CountDownLatch errorCalledCountDownLatch =
 			new CountDownLatch(1);
 		public static volatile CountDownLatch
-			_isWarnEnabledCalledCountDownLatch = new CountDownLatch(1);
-		public static volatile CountDownLatch
-			_warnCalledCountDownLatch = new CountDownLatch(1);
+			isWarnEnabledCalledCountDownLatch = new CountDownLatch(1);
+		public static volatile CountDownLatch warnCalledCountDownLatch =
+			new CountDownLatch(1);
 
 		public static void reset() {
-			_errorCalledCountDownLatch = new CountDownLatch(1);
-			_isWarnEnabledCalledCountDownLatch = new CountDownLatch(1);
-			_warnCalledCountDownLatch = new CountDownLatch(1);
+			errorCalledCountDownLatch = new CountDownLatch(1);
+			isWarnEnabledCalledCountDownLatch = new CountDownLatch(1);
+			warnCalledCountDownLatch = new CountDownLatch(1);
 		}
 
 		public static void waitUntilErrorCalled() throws InterruptedException {
-			_errorCalledCountDownLatch.await();
+			errorCalledCountDownLatch.await();
 		}
 
 		public static void waitUntilIsWarnEnableCalled()
 			throws InterruptedException {
 
-			_isWarnEnabledCalledCountDownLatch.await();
+			isWarnEnabledCalledCountDownLatch.await();
 		}
 
 		public static void waitUntilWarnCalled() throws InterruptedException {
-			_warnCalledCountDownLatch.await();
+			warnCalledCountDownLatch.await();
 		}
 
 		@org.aspectj.lang.annotation.After(
@@ -1298,7 +1302,7 @@ public class SelectorIntrabandTest {
 				"Object, Throwable))"
 		)
 		public void error() {
-			_errorCalledCountDownLatch.countDown();
+			errorCalledCountDownLatch.countDown();
 		}
 
 		@org.aspectj.lang.annotation.After(
@@ -1306,7 +1310,7 @@ public class SelectorIntrabandTest {
 				"isWarnEnabled())"
 		)
 		public void isWarnEnabled() {
-			_isWarnEnabledCalledCountDownLatch.countDown();
+			isWarnEnabledCalledCountDownLatch.countDown();
 		}
 
 		@org.aspectj.lang.annotation.After(
@@ -1314,7 +1318,7 @@ public class SelectorIntrabandTest {
 				"Object))"
 		)
 		public void warn1() {
-			_warnCalledCountDownLatch.countDown();
+			warnCalledCountDownLatch.countDown();
 		}
 
 		@org.aspectj.lang.annotation.After(
@@ -1322,7 +1326,7 @@ public class SelectorIntrabandTest {
 				"Object, Throwable))"
 		)
 		public void warn2() {
-			_warnCalledCountDownLatch.countDown();
+			warnCalledCountDownLatch.countDown();
 		}
 
 	}
@@ -1470,7 +1474,7 @@ public class SelectorIntrabandTest {
 
 	}
 
-	private class WakeUpRunnable implements Runnable {
+	private static class WakeUpRunnable implements Runnable {
 
 		public WakeUpRunnable(SelectorIntraband selectorIntraband) {
 			_selectorIntraband = selectorIntraband;

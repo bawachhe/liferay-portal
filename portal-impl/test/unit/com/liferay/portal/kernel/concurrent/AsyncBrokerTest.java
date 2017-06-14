@@ -50,7 +50,7 @@ public class AsyncBrokerTest {
 	@Rule
 	public static final AggregateTestRule aggregateTestRule =
 		new AggregateTestRule(
-			CodeCoverageAssertor.INSTANCE, AspectJNewEnvTestRule.INSTANCE);
+			AspectJNewEnvTestRule.INSTANCE, CodeCoverageAssertor.INSTANCE);
 
 	@After
 	public void tearDown() {
@@ -75,7 +75,7 @@ public class AsyncBrokerTest {
 
 		NoticeableFuture<String> noticeableFuture = asyncBroker.post(_KEY);
 
-		Assert.assertEquals(1, map.size());
+		Assert.assertEquals(map.toString(), 1, map.size());
 		Assert.assertSame(noticeableFuture, map.get(_KEY));
 
 		noticeableFuture.cancel(true);
@@ -149,7 +149,7 @@ public class AsyncBrokerTest {
 
 			List<LogRecord> logRecords = captureHandler.getLogRecords();
 
-			Assert.assertEquals(1, logRecords.size());
+			Assert.assertEquals(logRecords.toString(), 1, logRecords.size());
 
 			LogRecord logRecord = logRecords.get(0);
 
@@ -185,7 +185,7 @@ public class AsyncBrokerTest {
 
 			List<LogRecord> logRecords = captureHandler.getLogRecords();
 
-			Assert.assertEquals(1, logRecords.size());
+			Assert.assertEquals(logRecords.toString(), 1, logRecords.size());
 
 			LogRecord logRecord = logRecords.get(0);
 
@@ -204,34 +204,19 @@ public class AsyncBrokerTest {
 	@AdviseWith(adviceClasses = ReflectionUtilAdvice.class)
 	@NewEnv(type = NewEnv.Type.CLASSLOADER)
 	@Test
-	public void testPhantomReferenceResurrectionNotSupported()
+	public void testPhantomReferenceResurrectionNotSupportedWithLog()
 		throws ClassNotFoundException {
 
-		Throwable throwable = new Throwable();
+		testPhantomReferenceResurrectionNotSupported(true);
+	}
 
-		ReflectionUtilAdvice.setDeclaredFieldThrowable(throwable);
+	@AdviseWith(adviceClasses = ReflectionUtilAdvice.class)
+	@NewEnv(type = NewEnv.Type.CLASSLOADER)
+	@Test
+	public void testPhantomReferenceResurrectionNotSupportedWithoutLog()
+		throws ClassNotFoundException {
 
-		try (CaptureHandler captureHandler =
-				JDKLoggerTestUtil.configureJDKLogger(
-					AsyncBroker.class.getName(), Level.WARNING)) {
-
-			Class.forName(
-				AsyncBroker.class.getName(), true,
-				AsyncBroker.class.getClassLoader());
-
-			List<LogRecord> logRecords = captureHandler.getLogRecords();
-
-			Assert.assertEquals(1, logRecords.size());
-
-			LogRecord logRecord = logRecords.get(0);
-
-			Assert.assertEquals(
-				"Cancellation of orphaned noticeable futures is disabled " +
-					"because the JVM does not support phantom reference " +
-						"resurrection",
-				logRecord.getMessage());
-			Assert.assertSame(throwable, logRecord.getThrown());
-		}
+		testPhantomReferenceResurrectionNotSupported(false);
 	}
 
 	@Test
@@ -248,10 +233,14 @@ public class AsyncBrokerTest {
 
 		NoticeableFuture<String> noticeableFuture = asyncBroker.post(_KEY);
 
-		Assert.assertEquals(1, defaultNoticeableFutures.size());
+		Assert.assertEquals(
+			defaultNoticeableFutures.toString(), 1,
+			defaultNoticeableFutures.size());
 		Assert.assertSame(noticeableFuture, defaultNoticeableFutures.get(_KEY));
 		Assert.assertSame(noticeableFuture, asyncBroker.post(_KEY));
-		Assert.assertEquals(1, defaultNoticeableFutures.size());
+		Assert.assertEquals(
+			defaultNoticeableFutures.toString(), 1,
+			defaultNoticeableFutures.size());
 		Assert.assertTrue(noticeableFuture.cancel(true));
 		Assert.assertTrue(defaultNoticeableFutures.isEmpty());
 	}
@@ -270,7 +259,7 @@ public class AsyncBrokerTest {
 
 			List<LogRecord> logRecords = captureHandler.getLogRecords();
 
-			Assert.assertEquals(1, logRecords.size());
+			Assert.assertEquals(logRecords.toString(), 1, logRecords.size());
 
 			LogRecord logRecord = logRecords.get(0);
 
@@ -295,11 +284,14 @@ public class AsyncBrokerTest {
 				asyncBroker, "_defaultNoticeableFutures");
 
 		Assert.assertTrue(defaultNoticeableFutures.isEmpty());
+
 		Assert.assertNull(asyncBroker.take(_KEY));
 
 		NoticeableFuture<String> noticeableFuture = asyncBroker.post(_KEY);
 
-		Assert.assertEquals(1, defaultNoticeableFutures.size());
+		Assert.assertEquals(
+			defaultNoticeableFutures.toString(), 1,
+			defaultNoticeableFutures.size());
 		Assert.assertSame(noticeableFuture, defaultNoticeableFutures.get(_KEY));
 		Assert.assertSame(noticeableFuture, asyncBroker.take(_KEY));
 		Assert.assertTrue(defaultNoticeableFutures.isEmpty());
@@ -323,7 +315,9 @@ public class AsyncBrokerTest {
 
 		NoticeableFuture<String> noticeableFuture = asyncBroker.post(_KEY);
 
-		Assert.assertEquals(1, defaultNoticeableFutures.size());
+		Assert.assertEquals(
+			defaultNoticeableFutures.toString(), 1,
+			defaultNoticeableFutures.size());
 		Assert.assertSame(noticeableFuture, defaultNoticeableFutures.get(_KEY));
 		Assert.assertTrue(asyncBroker.takeWithException(_KEY, exception));
 
@@ -349,16 +343,67 @@ public class AsyncBrokerTest {
 				asyncBroker, "_defaultNoticeableFutures");
 
 		Assert.assertTrue(defaultNoticeableFutures.isEmpty());
+
 		Assert.assertFalse(asyncBroker.takeWithResult(_KEY, _VALUE));
 
 		NoticeableFuture<String> noticeableFuture = asyncBroker.post(_KEY);
 
-		Assert.assertEquals(1, defaultNoticeableFutures.size());
+		Assert.assertEquals(
+			defaultNoticeableFutures.toString(), 1,
+			defaultNoticeableFutures.size());
 		Assert.assertSame(noticeableFuture, defaultNoticeableFutures.get(_KEY));
 		Assert.assertTrue(asyncBroker.takeWithResult(_KEY, _VALUE));
 		Assert.assertEquals(_VALUE, noticeableFuture.get());
 		Assert.assertTrue(defaultNoticeableFutures.isEmpty());
 		Assert.assertFalse(asyncBroker.takeWithResult(_KEY, _VALUE));
+	}
+
+	protected void testPhantomReferenceResurrectionNotSupported(boolean withLog)
+		throws ClassNotFoundException {
+
+		Throwable throwable = new Throwable();
+
+		ReflectionUtilAdvice.setDeclaredFieldThrowable(throwable);
+
+		Level level = Level.OFF;
+
+		if (withLog) {
+			level = Level.WARNING;
+		}
+
+		try (CaptureHandler captureHandler =
+				JDKLoggerTestUtil.configureJDKLogger(
+					AsyncBroker.class.getName(), level)) {
+
+			Class.forName(
+				AsyncBroker.class.getName(), true,
+				AsyncBroker.class.getClassLoader());
+
+			List<LogRecord> logRecords = captureHandler.getLogRecords();
+
+			if (withLog) {
+				Assert.assertEquals(
+					logRecords.toString(), 1, logRecords.size());
+
+				LogRecord logRecord = logRecords.get(0);
+
+				Assert.assertEquals(
+					"Cancellation of orphaned noticeable futures is disabled " +
+						"because the JVM does not support phantom reference " +
+							"resurrection",
+					logRecord.getMessage());
+				Assert.assertSame(throwable, logRecord.getThrown());
+			}
+			else {
+				Assert.assertTrue(logRecords.isEmpty());
+			}
+
+			ReflectionUtilAdvice.setDeclaredFieldThrowable(null);
+
+			Assert.assertNull(
+				ReflectionTestUtil.getFieldValue(
+					AsyncBroker.class, "_REFERENT_FIELD"));
+		}
 	}
 
 	private static final String _KEY = "testKey";

@@ -78,7 +78,7 @@ public class FileUploadChannelHandlerTest {
 	@Rule
 	public static final AggregateTestRule aggregateTestRule =
 		new AggregateTestRule(
-			CodeCoverageAssertor.INSTANCE, AspectJNewEnvTestRule.INSTANCE);
+			AspectJNewEnvTestRule.INSTANCE, CodeCoverageAssertor.INSTANCE);
 
 	@After
 	public void tearDown() {
@@ -201,15 +201,15 @@ public class FileUploadChannelHandlerTest {
 			new FileChannelWrapper(fileUploadChannelHandler.fileChannel) {
 
 				@Override
+				public long position() {
+					return unsyncByteArrayOutputStream.size();
+				}
+
+				@Override
 				public int write(ByteBuffer byteBuffer) {
 					unsyncByteArrayOutputStream.write(byteBuffer.get());
 
 					return 1;
-				}
-
-				@Override
-				public long position() {
-					return unsyncByteArrayOutputStream.size();
 				}
 
 			});
@@ -228,6 +228,7 @@ public class FileUploadChannelHandlerTest {
 		Assert.assertEquals(1, byteBuf.refCnt());
 		Assert.assertTrue(fileUploadChannelHandler.receive(byteBuf));
 		Assert.assertEquals(1, byteBuf.refCnt());
+
 		Assert.assertArrayEquals(
 			data, unsyncByteArrayOutputStream.toByteArray());
 		Assert.assertEquals(Unpooled.wrappedBuffer(data), byteBuf);

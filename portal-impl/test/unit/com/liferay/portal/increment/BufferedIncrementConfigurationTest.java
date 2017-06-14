@@ -50,17 +50,17 @@ public class BufferedIncrementConfigurationTest {
 	@Rule
 	public static final AggregateTestRule aggregateTestRule =
 		new AggregateTestRule(
-			CodeCoverageAssertor.INSTANCE, AspectJNewEnvTestRule.INSTANCE);
+			AspectJNewEnvTestRule.INSTANCE, CodeCoverageAssertor.INSTANCE);
 
 	@AdviseWith(adviceClasses = PropsUtilAdvice.class)
 	@Test
 	public void testInvalidSettingWithLog() {
 		try (CaptureHandler captureHandler =
-				_doTestInvalidSetting(Level.WARNING)) {
+				_testInvalidSetting(Level.WARNING)) {
 
 			List<LogRecord> logRecords = captureHandler.getLogRecords();
 
-			Assert.assertEquals(2, logRecords.size());
+			Assert.assertEquals(logRecords.toString(), 2, logRecords.size());
 
 			LogRecord logRecord1 = logRecords.get(0);
 
@@ -81,7 +81,7 @@ public class BufferedIncrementConfigurationTest {
 	@AdviseWith(adviceClasses = PropsUtilAdvice.class)
 	@Test
 	public void testInvalidSettingWithoutLog() {
-		try (CaptureHandler captureHandler = _doTestInvalidSetting(Level.OFF)) {
+		try (CaptureHandler captureHandler = _testInvalidSetting(Level.OFF)) {
 			List<LogRecord> logRecords = captureHandler.getLogRecords();
 
 			Assert.assertTrue(logRecords.isEmpty());
@@ -174,7 +174,7 @@ public class BufferedIncrementConfigurationTest {
 
 	}
 
-	private CaptureHandler _doTestInvalidSetting(Level level) {
+	private CaptureHandler _testInvalidSetting(Level level) {
 		Map<String, String> props = new HashMap<>();
 
 		props.put(PropsKeys.BUFFERED_INCREMENT_ENABLED, "false");

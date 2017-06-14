@@ -1,40 +1,61 @@
 <definition component-name="portal-workflow">
-	<property name="web.plugins.includes" value="kaleo-web" />
+	<property name="portal.release" value="true" />
+	<property name="portal.upstream" value="true" />
 	<property name="testray.main.component.name" value="Workflow" />
 
 	<var name="workflowAssetType" value="Web Content Article" />
 
 	<set-up>
+		<execute macro="TestCase#setUpPortalInstance" />
+
 		<execute macro="User#firstLoginPG" />
 
-		<execute macro="Page#gotoContentCP">
-			<var name="portletName" value="Web Content" />
+		<execute macro="Navigator#openURL" />
+
+		<execute macro="ProductMenu#gotoSitesContent">
+			<var name="portlet" value="Web Content" />
 		</execute>
 
-		<execute macro="Workflow#configureWebContentWorkflow">
+		<execute macro="Workflow#configureWorkflowViaFolderInfo">
 			<var name="workflowDefinition" value="Single Approver (Version 1)" />
 		</execute>
 	</set-up>
 
 	<tear-down>
-		<execute macro="WebContent#tearDownCP" />
+		<var method="TestPropsUtil#get('test.portal.instance')" name="testPortalInstance" />
 
-		<execute macro="Workflow#tearDownPortalWorkflow" />
+		<if>
+			<equals arg1="${testPortalInstance}" arg2="true" />
+			<then>
+				<execute macro="PortalInstances#tearDownCP" />
+			</then>
+			<else>
+				<execute macro="WebContent#tearDownCP" />
 
-		<execute macro="Workflow#tearDownSiteWorkflow" />
+				<execute macro="Workflow#tearDownPortalWorkflow" />
+
+				<execute macro="Workflow#tearDownSiteWorkflow" />
+			</else>
+		</if>
 	</tear-down>
 
 	<command name="WithdrawTaskAssignedToMeByActions" priority="5">
+		<property name="portal.acceptance" value="true" />
+
 		<var name="webContentContent" value="WC WebContent Content" />
 		<var name="webContentTitle" value="WC WebContent Title" />
 
-		<execute macro="Page#gotoContentCP">
-			<var name="portletName" value="Web Content" />
+		<execute macro="Navigator#openURL" />
+
+		<execute macro="ProductMenu#gotoSitesContent">
+			<var name="portlet" value="Web Content" />
 		</execute>
 
+		<execute macro="WebContentNavigator#gotoAddCP" />
+
 		<execute macro="WebContent#addWithWorkflowCP">
-			<var name="webContentContent" value="${webContentContent}" />
-			<var name="webContentTitle" value="${webContentTitle}" />
+			<var name="webContentContent" value="WC WebContent Content" />
+			<var name="webContentTitle" value="WC WebContent Title" />
 		</execute>
 
 		<execute macro="Page#gotoMyAccount">
@@ -42,8 +63,8 @@
 		</execute>
 
 		<execute macro="Workflow#assignToMeTaskByActions">
-			<var name="workflowAssetTitle" value="${webContentTitle}" />
-			<var name="workflowAssetType" value="${workflowAssetType}" />
+			<var name="workflowAssetTitle" value="WC WebContent Title" />
+			<var name="workflowAssetType" value="Web Content Article" />
 			<var name="workflowTask" value="Review" />
 		</execute>
 
@@ -52,33 +73,45 @@
 		</execute>
 
 		<execute macro="Workflow#withdrawTaskByActions">
-			<var name="workflowAssetTitle" value="${webContentTitle}" />
-			<var name="workflowAssetType" value="${workflowAssetType}" />
+			<var name="workflowAssetTitle" value="WC WebContent Title" />
+			<var name="workflowAssetType" value="Web Content Article" />
 			<var name="workflowDefinition" value="Single Approver" />
 			<var name="workflowTask" value="Review" />
 		</execute>
 
-		<execute macro="Page#gotoContentCP">
-			<var name="portletName" value="Web Content" />
+		<execute macro="Navigator#openURL" />
+
+		<execute macro="ProductMenu#gotoSitesContent">
+			<var name="portlet" value="Web Content" />
 		</execute>
 
-		<execute macro="WebContent#viewCPStatus">
+		<execute macro="WebContentNavigator#gotoViewStatus">
 			<var name="webContentStatus" value="Draft" />
-			<var name="webContentTitle" value="${webContentTitle}" />
+			<var name="webContentTitle" value="WC WebContent Title" />
+		</execute>
+
+		<execute macro="WebContent#viewStatus">
+			<var name="webContentContent" value="WC WebContent Content" />
+			<var name="webContentStatus" value="Draft" />
+			<var name="webContentTitle" value="WC WebContent Title" />
 		</execute>
 	</command>
 
-	<command name="WithdrawTaskAssignedToMeByDetails" priority="5">
+	<command name="WithdrawTaskAssignedToMeByDetails" priority="3">
 		<var name="webContentContent" value="WC WebContent Content" />
 		<var name="webContentTitle" value="WC WebContent Title" />
 
-		<execute macro="Page#gotoContentCP">
-			<var name="portletName" value="Web Content" />
+		<execute macro="Navigator#openURL" />
+
+		<execute macro="ProductMenu#gotoSitesContent">
+			<var name="portlet" value="Web Content" />
 		</execute>
 
+		<execute macro="WebContentNavigator#gotoAddCP" />
+
 		<execute macro="WebContent#addWithWorkflowCP">
-			<var name="webContentContent" value="${webContentContent}" />
-			<var name="webContentTitle" value="${webContentTitle}" />
+			<var name="webContentContent" value="WC WebContent Content" />
+			<var name="webContentTitle" value="WC WebContent Title" />
 		</execute>
 
 		<execute macro="Page#gotoMyAccount">
@@ -86,9 +119,9 @@
 		</execute>
 
 		<execute macro="Workflow#assignToMeTaskByDetails">
-			<var name="workflowAssetContent" value="${webContentContent}" />
-			<var name="workflowAssetTitle" value="${webContentTitle}" />
-			<var name="workflowAssetType" value="${workflowAssetType}" />
+			<var name="workflowAssetContent" value="WC WebContent Content" />
+			<var name="workflowAssetTitle" value="WC WebContent Title" />
+			<var name="workflowAssetType" value="Web Content Article" />
 			<var name="workflowTask" value="Review" />
 		</execute>
 
@@ -97,34 +130,46 @@
 		</execute>
 
 		<execute macro="Workflow#withdrawTaskByDetails">
-			<var name="workflowAssetContent" value="${webContentContent}" />
-			<var name="workflowAssetTitle" value="${webContentTitle}" />
-			<var name="workflowAssetType" value="${workflowAssetType}" />
+			<var name="workflowAssetContent" value="WC WebContent Content" />
+			<var name="workflowAssetTitle" value="WC WebContent Title" />
+			<var name="workflowAssetType" value="Web Content Article" />
 			<var name="workflowDefinition" value="Single Approver" />
 			<var name="workflowTask" value="Review" />
 		</execute>
 
-		<execute macro="Page#gotoContentCP">
-			<var name="portletName" value="Web Content" />
+		<execute macro="Navigator#openURL" />
+
+		<execute macro="ProductMenu#gotoSitesContent">
+			<var name="portlet" value="Web Content" />
 		</execute>
 
-		<execute macro="WebContent#viewCPStatus">
+		<execute macro="WebContentNavigator#gotoViewStatus">
 			<var name="webContentStatus" value="Draft" />
-			<var name="webContentTitle" value="${webContentTitle}" />
+			<var name="webContentTitle" value="WC WebContent Title" />
+		</execute>
+
+		<execute macro="WebContent#viewStatus">
+			<var name="webContentContent" value="WC WebContent Content" />
+			<var name="webContentStatus" value="Draft" />
+			<var name="webContentTitle" value="WC WebContent Title" />
 		</execute>
 	</command>
 
-	<command name="WithdrawTaskAssignedToMyRolesByActions" priority="5">
+	<command name="WithdrawTaskAssignedToMyRolesByActions" priority="4">
 		<var name="webContentContent" value="WC WebContent Content" />
 		<var name="webContentTitle" value="WC WebContent Title" />
 
-		<execute macro="Page#gotoContentCP">
-			<var name="portletName" value="Web Content" />
+		<execute macro="Navigator#openURL" />
+
+		<execute macro="ProductMenu#gotoSitesContent">
+			<var name="portlet" value="Web Content" />
 		</execute>
 
+		<execute macro="WebContentNavigator#gotoAddCP" />
+
 		<execute macro="WebContent#addWithWorkflowCP">
-			<var name="webContentContent" value="${webContentContent}" />
-			<var name="webContentTitle" value="${webContentTitle}" />
+			<var name="webContentContent" value="WC WebContent Content" />
+			<var name="webContentTitle" value="WC WebContent Title" />
 		</execute>
 
 		<execute macro="Page#gotoMyAccount">
@@ -132,33 +177,45 @@
 		</execute>
 
 		<execute macro="Workflow#withdrawTaskByActions">
-			<var name="workflowAssetTitle" value="${webContentTitle}" />
-			<var name="workflowAssetType" value="${workflowAssetType}" />
+			<var name="workflowAssetTitle" value="WC WebContent Title" />
+			<var name="workflowAssetType" value="Web Content Article" />
 			<var name="workflowDefinition" value="Single Approver" />
 			<var name="workflowTask" value="Review" />
 		</execute>
 
-		<execute macro="Page#gotoContentCP">
-			<var name="portletName" value="Web Content" />
+		<execute macro="Navigator#openURL" />
+
+		<execute macro="ProductMenu#gotoSitesContent">
+			<var name="portlet" value="Web Content" />
 		</execute>
 
-		<execute macro="WebContent#viewCPStatus">
+		<execute macro="WebContentNavigator#gotoViewStatus">
 			<var name="webContentStatus" value="Draft" />
-			<var name="webContentTitle" value="${webContentTitle}" />
+			<var name="webContentTitle" value="WC WebContent Title" />
+		</execute>
+
+		<execute macro="WebContent#viewStatus">
+			<var name="webContentContent" value="WC WebContent Content" />
+			<var name="webContentStatus" value="Draft" />
+			<var name="webContentTitle" value="WC WebContent Title" />
 		</execute>
 	</command>
 
-	<command name="WithdrawTaskAssignedToMyRolesByDetails" priority="5">
+	<command name="WithdrawTaskAssignedToMyRolesByDetails" priority="3">
 		<var name="webContentContent" value="WC WebContent Content" />
 		<var name="webContentTitle" value="WC WebContent Title" />
 
-		<execute macro="Page#gotoContentCP">
-			<var name="portletName" value="Web Content" />
+		<execute macro="Navigator#openURL" />
+
+		<execute macro="ProductMenu#gotoSitesContent">
+			<var name="portlet" value="Web Content" />
 		</execute>
 
+		<execute macro="WebContentNavigator#gotoAddCP" />
+
 		<execute macro="WebContent#addWithWorkflowCP">
-			<var name="webContentContent" value="${webContentContent}" />
-			<var name="webContentTitle" value="${webContentTitle}" />
+			<var name="webContentContent" value="WC WebContent Content" />
+			<var name="webContentTitle" value="WC WebContent Title" />
 		</execute>
 
 		<execute macro="Page#gotoMyAccount">
@@ -166,34 +223,46 @@
 		</execute>
 
 		<execute macro="Workflow#withdrawTaskByDetails">
-			<var name="workflowAssetContent" value="${webContentContent}" />
-			<var name="workflowAssetTitle" value="${webContentTitle}" />
-			<var name="workflowAssetType" value="${workflowAssetType}" />
+			<var name="workflowAssetContent" value="WC WebContent Content" />
+			<var name="workflowAssetTitle" value="WC WebContent Title" />
+			<var name="workflowAssetType" value="Web Content Article" />
 			<var name="workflowDefinition" value="Single Approver" />
 			<var name="workflowTask" value="Review" />
 		</execute>
 
-		<execute macro="Page#gotoContentCP">
-			<var name="portletName" value="Web Content" />
+		<execute macro="Navigator#openURL" />
+
+		<execute macro="ProductMenu#gotoSitesContent">
+			<var name="portlet" value="Web Content" />
 		</execute>
 
-		<execute macro="WebContent#viewCPStatus">
+		<execute macro="WebContentNavigator#gotoViewStatus">
 			<var name="webContentStatus" value="Draft" />
-			<var name="webContentTitle" value="${webContentTitle}" />
+			<var name="webContentTitle" value="WC WebContent Title" />
+		</execute>
+
+		<execute macro="WebContent#viewStatus">
+			<var name="webContentContent" value="WC WebContent Content" />
+			<var name="webContentStatus" value="Draft" />
+			<var name="webContentTitle" value="WC WebContent Title" />
 		</execute>
 	</command>
 
-	<command name="WithdrawTaskCompletedNoByActions" priority="5">
+	<command name="WithdrawTaskCompletedNoByActions" priority="4">
 		<var name="webContentContent" value="WC WebContent Content" />
 		<var name="webContentTitle" value="WC WebContent Title" />
 
-		<execute macro="Page#gotoContentCP">
-			<var name="portletName" value="Web Content" />
+		<execute macro="Navigator#openURL" />
+
+		<execute macro="ProductMenu#gotoSitesContent">
+			<var name="portlet" value="Web Content" />
 		</execute>
 
+		<execute macro="WebContentNavigator#gotoAddCP" />
+
 		<execute macro="WebContent#addWithWorkflowCP">
-			<var name="webContentContent" value="${webContentContent}" />
-			<var name="webContentTitle" value="${webContentTitle}" />
+			<var name="webContentContent" value="WC WebContent Content" />
+			<var name="webContentTitle" value="WC WebContent Title" />
 		</execute>
 
 		<execute macro="Page#gotoMyAccount">
@@ -201,8 +270,8 @@
 		</execute>
 
 		<execute macro="Workflow#assignToMeTaskByActions">
-			<var name="workflowAssetTitle" value="${webContentTitle}" />
-			<var name="workflowAssetType" value="${workflowAssetType}" />
+			<var name="workflowAssetTitle" value="WC WebContent Title" />
+			<var name="workflowAssetType" value="Web Content Article" />
 			<var name="workflowTask" value="Review" />
 		</execute>
 
@@ -211,8 +280,8 @@
 		</execute>
 
 		<execute macro="Workflow#approveTaskByActions">
-			<var name="workflowAssetTitle" value="${webContentTitle}" />
-			<var name="workflowAssetType" value="${workflowAssetType}" />
+			<var name="workflowAssetTitle" value="WC WebContent Title" />
+			<var name="workflowAssetType" value="Web Content Article" />
 			<var name="workflowTask" value="Review" />
 		</execute>
 
@@ -220,25 +289,29 @@
 			<var name="portletName" value="My Submissions" />
 		</execute>
 
-		<execute macro="Workflow#withdrawTaskCompletedNoByActions">
-			<var name="workflowAssetTitle" value="${webContentTitle}" />
-			<var name="workflowAssetType" value="${workflowAssetType}" />
+		<execute macro="Workflow#viewCannotWithdrawTaskByActions">
+			<var name="workflowAssetTitle" value="WC WebContent Title" />
+			<var name="workflowAssetType" value="Web Content Article" />
 			<var name="workflowDefinition" value="Single Approver" />
 			<var name="workflowTask" value="Approved" />
 		</execute>
 	</command>
 
-	<command name="WithdrawTaskCompletedNoByDetails" priority="5">
+	<command name="WithdrawTaskCompletedNoByDetails" priority="3">
 		<var name="webContentContent" value="WC WebContent Content" />
 		<var name="webContentTitle" value="WC WebContent Title" />
 
-		<execute macro="Page#gotoContentCP">
-			<var name="portletName" value="Web Content" />
+		<execute macro="Navigator#openURL" />
+
+		<execute macro="ProductMenu#gotoSitesContent">
+			<var name="portlet" value="Web Content" />
 		</execute>
 
+		<execute macro="WebContentNavigator#gotoAddCP" />
+
 		<execute macro="WebContent#addWithWorkflowCP">
-			<var name="webContentContent" value="${webContentContent}" />
-			<var name="webContentTitle" value="${webContentTitle}" />
+			<var name="webContentContent" value="WC WebContent Content" />
+			<var name="webContentTitle" value="WC WebContent Title" />
 		</execute>
 
 		<execute macro="Page#gotoMyAccount">
@@ -246,9 +319,9 @@
 		</execute>
 
 		<execute macro="Workflow#assignToMeTaskByDetails">
-			<var name="workflowAssetContent" value="${webContentContent}" />
-			<var name="workflowAssetTitle" value="${webContentTitle}" />
-			<var name="workflowAssetType" value="${workflowAssetType}" />
+			<var name="workflowAssetContent" value="WC WebContent Content" />
+			<var name="workflowAssetTitle" value="WC WebContent Title" />
+			<var name="workflowAssetType" value="Web Content Article" />
 			<var name="workflowTask" value="Review" />
 		</execute>
 
@@ -257,9 +330,9 @@
 		</execute>
 
 		<execute macro="Workflow#approveTaskByDetails">
-			<var name="workflowAssetContent" value="${webContentContent}" />
-			<var name="workflowAssetTitle" value="${webContentTitle}" />
-			<var name="workflowAssetType" value="${workflowAssetType}" />
+			<var name="workflowAssetContent" value="WC WebContent Content" />
+			<var name="workflowAssetTitle" value="WC WebContent Title" />
+			<var name="workflowAssetType" value="Web Content Article" />
 			<var name="workflowTask" value="Review" />
 		</execute>
 
@@ -268,9 +341,9 @@
 		</execute>
 
 		<execute macro="Workflow#withdrawTaskCompletedNoByDetails">
-			<var name="workflowAssetContent" value="${webContentContent}" />
-			<var name="workflowAssetTitle" value="${webContentTitle}" />
-			<var name="workflowAssetType" value="${workflowAssetType}" />
+			<var name="workflowAssetContent" value="WC WebContent Content" />
+			<var name="workflowAssetTitle" value="WC WebContent Title" />
+			<var name="workflowAssetType" value="Web Content Article" />
 			<var name="workflowDefinition" value="Single Approver" />
 			<var name="workflowTask" value="Approved" />
 		</execute>

@@ -14,7 +14,14 @@
 
 package com.liferay.portlet.expando.model.impl;
 
+import com.liferay.expando.kernel.exception.ValueDataException;
+import com.liferay.expando.kernel.model.ExpandoColumn;
+import com.liferay.expando.kernel.model.ExpandoColumnConstants;
+import com.liferay.expando.kernel.service.ExpandoColumnLocalServiceUtil;
 import com.liferay.portal.kernel.exception.PortalException;
+import com.liferay.portal.kernel.json.JSONFactoryUtil;
+import com.liferay.portal.kernel.json.JSONObject;
+import com.liferay.portal.kernel.util.CharPool;
 import com.liferay.portal.kernel.util.GetterUtil;
 import com.liferay.portal.kernel.util.LocaleUtil;
 import com.liferay.portal.kernel.util.LocalizationUtil;
@@ -22,10 +29,6 @@ import com.liferay.portal.kernel.util.StringBundler;
 import com.liferay.portal.kernel.util.StringPool;
 import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.kernel.util.Validator;
-import com.liferay.portlet.expando.ValueDataException;
-import com.liferay.portlet.expando.model.ExpandoColumn;
-import com.liferay.portlet.expando.model.ExpandoColumnConstants;
-import com.liferay.portlet.expando.service.ExpandoColumnLocalServiceUtil;
 
 import java.io.Serializable;
 
@@ -149,6 +152,13 @@ public class ExpandoValueImpl extends ExpandoValueBaseImpl {
 		validate(ExpandoColumnConstants.FLOAT_ARRAY);
 
 		return GetterUtil.getFloatValues(StringUtil.split(getData()));
+	}
+
+	@Override
+	public JSONObject getGeolocationJSONObject() throws PortalException {
+		validate(ExpandoColumnConstants.GEOLOCATION);
+
+		return JSONFactoryUtil.createJSONObject(getData());
 	}
 
 	@Override
@@ -408,6 +418,15 @@ public class ExpandoValueImpl extends ExpandoValueBaseImpl {
 	}
 
 	@Override
+	public void setGeolocationJSONObject(JSONObject data)
+		throws PortalException {
+
+		validate(ExpandoColumnConstants.GEOLOCATION);
+
+		setData(data.toJSONString());
+	}
+
+	@Override
 	public void setInteger(int data) throws PortalException {
 		validate(ExpandoColumnConstants.INTEGER);
 
@@ -577,7 +596,7 @@ public class ExpandoValueImpl extends ExpandoValueBaseImpl {
 		if (data != null) {
 			for (int i = 0; i < data.length; i++) {
 				data[i] = StringUtil.replace(
-					data[i], StringPool.COMMA, _EXPANDO_COMMA);
+					data[i], CharPool.COMMA, _EXPANDO_COMMA);
 			}
 		}
 

@@ -15,7 +15,6 @@
 package com.liferay.portal.kernel.nio.intraband.messaging;
 
 import com.liferay.portal.kernel.messaging.BaseDestination;
-import com.liferay.portal.kernel.messaging.DefaultMessageBus;
 import com.liferay.portal.kernel.messaging.Message;
 import com.liferay.portal.kernel.messaging.MessageBus;
 import com.liferay.portal.kernel.messaging.MessageBusException;
@@ -34,15 +33,22 @@ import com.liferay.portal.kernel.test.rule.NewEnv;
 import com.liferay.portal.kernel.util.PortalClassLoaderUtil;
 import com.liferay.portal.test.rule.AdviseWith;
 import com.liferay.portal.test.rule.AspectJNewEnvTestRule;
+import com.liferay.registry.BasicRegistryImpl;
+import com.liferay.registry.RegistryUtil;
 
 import java.nio.ByteBuffer;
 
+import java.util.ArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+
+import org.mockito.Matchers;
+import org.mockito.Mockito;
 
 /**
  * @author Shuyang Zhou
@@ -53,7 +59,12 @@ public class MessageDatagramReceiveHandlerTest {
 	@Rule
 	public static final AggregateTestRule aggregateTestRule =
 		new AggregateTestRule(
-			CodeCoverageAssertor.INSTANCE, AspectJNewEnvTestRule.INSTANCE);
+			AspectJNewEnvTestRule.INSTANCE, CodeCoverageAssertor.INSTANCE);
+
+	@Before
+	public void setUp() {
+		RegistryUtil.setRegistry(new BasicRegistryImpl());
+	}
 
 	@AdviseWith(adviceClasses = {PortalExecutorManagerUtilAdvice.class})
 	@NewEnv(type = NewEnv.Type.CLASSLOADER)
@@ -65,7 +76,7 @@ public class MessageDatagramReceiveHandlerTest {
 		PortalClassLoaderUtil.setClassLoader(
 			MessageDatagramReceiveHandlerTest.class.getClassLoader());
 
-		MessageBus messageBus = new DefaultMessageBus();
+		MessageBus messageBus = Mockito.mock(MessageBus.class);
 
 		MessageDatagramReceiveHandler messageDatagramReceiveHandler =
 			new MessageDatagramReceiveHandler(messageBus);
@@ -115,6 +126,12 @@ public class MessageDatagramReceiveHandlerTest {
 
 		messageBus.addDestination(baseDestination);
 
+		Mockito.when(
+			messageBus.getDestination(Matchers.anyString())
+		).thenReturn(
+			baseDestination
+		);
+
 		datagram = Datagram.createRequestDatagram(
 			systemDataType.getValue(), messageRoutingBag.toByteArray());
 
@@ -144,8 +161,7 @@ public class MessageDatagramReceiveHandlerTest {
 					messageReference.set(message);
 				}
 
-			}
-		);
+			});
 
 		datagram = Datagram.createRequestDatagram(
 			systemDataType.getValue(), messageRoutingBag.toByteArray());
@@ -183,8 +199,7 @@ public class MessageDatagramReceiveHandlerTest {
 					throw messageListenerException;
 				}
 
-			}
-		);
+			});
 
 		datagram = Datagram.createRequestDatagram(
 			systemDataType.getValue(), messageRoutingBag.toByteArray());
@@ -223,6 +238,12 @@ public class MessageDatagramReceiveHandlerTest {
 
 		messageBus.addDestination(intrabandBridgeDestination);
 
+		Mockito.when(
+			messageBus.getDestination(Matchers.anyString())
+		).thenReturn(
+			intrabandBridgeDestination
+		);
+
 		datagram = Datagram.createRequestDatagram(
 			systemDataType.getValue(), messageRoutingBag.toByteArray());
 
@@ -244,8 +265,7 @@ public class MessageDatagramReceiveHandlerTest {
 					messageReference.set(message);
 				}
 
-			}
-		);
+			});
 
 		datagram = Datagram.createRequestDatagram(
 			systemDataType.getValue(), messageRoutingBag.toByteArray());
@@ -267,9 +287,9 @@ public class MessageDatagramReceiveHandlerTest {
 			expectedMessageRoutingBag.isRoutingDowncast(),
 			actualMessageRoutingBag.isRoutingDowncast());
 		Assert.assertEquals(
-			ReflectionTestUtil.getFieldValue(
+			ReflectionTestUtil.<ArrayList<String>>getFieldValue(
 				expectedMessageRoutingBag, "_routingTrace"),
-			ReflectionTestUtil.getFieldValue(
+			ReflectionTestUtil.<ArrayList<String>>getFieldValue(
 				actualMessageRoutingBag, "_routingTrace"));
 	}
 

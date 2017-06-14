@@ -14,9 +14,11 @@
 
 package com.liferay.portal.dao.db;
 
-import com.liferay.counter.service.CounterLocalServiceUtil;
+import com.liferay.counter.kernel.service.CounterLocalServiceUtil;
 import com.liferay.portal.dao.orm.common.SQLTransformer;
+import com.liferay.portal.kernel.configuration.Filter;
 import com.liferay.portal.kernel.dao.db.DB;
+import com.liferay.portal.kernel.dao.db.DBType;
 import com.liferay.portal.kernel.dao.db.Index;
 import com.liferay.portal.kernel.dao.db.IndexMetadata;
 import com.liferay.portal.kernel.dao.db.IndexMetadataFactoryUtil;
@@ -30,14 +32,16 @@ import com.liferay.portal.kernel.template.StringTemplateResource;
 import com.liferay.portal.kernel.template.Template;
 import com.liferay.portal.kernel.template.TemplateConstants;
 import com.liferay.portal.kernel.template.TemplateManagerUtil;
+import com.liferay.portal.kernel.util.ClassLoaderUtil;
 import com.liferay.portal.kernel.util.FileUtil;
 import com.liferay.portal.kernel.util.GetterUtil;
+import com.liferay.portal.kernel.util.PropsKeys;
+import com.liferay.portal.kernel.util.PropsUtil;
 import com.liferay.portal.kernel.util.StringBundler;
 import com.liferay.portal.kernel.util.StringPool;
 import com.liferay.portal.kernel.util.StringUtil;
 import com.liferay.portal.kernel.util.Validator;
 import com.liferay.portal.kernel.uuid.PortalUUIDUtil;
-import com.liferay.portal.util.ClassLoaderUtil;
 import com.liferay.util.SimpleCounter;
 
 import java.io.File;
@@ -88,6 +92,7 @@ public abstract class BaseDB implements DB {
 			}
 
 			int y = sql.indexOf(" on ");
+
 			int x = sql.lastIndexOf(" ", y - 1);
 
 			String indexName = sql.substring(x + 1, y);
@@ -117,7 +122,6 @@ public abstract class BaseDB implements DB {
 
 		buildCreateFile(sqlDir, databaseName, BARE);
 		buildCreateFile(sqlDir, databaseName, DEFAULT);
-		buildCreateFile(sqlDir, databaseName, SHARDED);
 	}
 
 	@Override
@@ -131,35 +135,11 @@ public abstract class BaseDB implements DB {
 			sqlDir + "/create" + suffix + "/create" + suffix + "-" +
 				getServerName() + ".sql");
 
-		if (population != SHARDED) {
-			String content = buildCreateFileContent(
-				sqlDir, databaseName, population);
+		String content = buildCreateFileContent(
+			sqlDir, databaseName, population);
 
-			if (content != null) {
-				FileUtil.write(file, content);
-			}
-		}
-		else {
-			String content = buildCreateFileContent(
-				sqlDir, databaseName, DEFAULT);
-
-			if (content != null) {
-				FileUtil.write(file, content);
-			}
-
-			content = buildCreateFileContent(
-				sqlDir, databaseName + "1", DEFAULT);
-
-			if (content != null) {
-				FileUtil.write(file, content, false, true);
-			}
-
-			content = buildCreateFileContent(
-				sqlDir, databaseName + "2", DEFAULT);
-
-			if (content != null) {
-				FileUtil.write(file, content, false, true);
-			}
+		if (content != null) {
+			FileUtil.write(file, content);
 		}
 	}
 
@@ -185,9 +165,29 @@ public abstract class BaseDB implements DB {
 	}
 
 	@Override
+	public DBType getDBType() {
+		return _dbType;
+	}
+
+	@Override
 	@SuppressWarnings("unused")
 	public List<Index> getIndexes(Connection con) throws SQLException {
 		return Collections.emptyList();
+	}
+
+	@Override
+	public int getMajorVersion() {
+		return _majorVersion;
+	}
+
+	@Override
+	public int getMinorVersion() {
+		return _minorVersion;
+	}
+
+	@Override
+	public String getTemplateBlob() {
+		return getTemplate()[5];
 	}
 
 	@Override
@@ -201,8 +201,8 @@ public abstract class BaseDB implements DB {
 	}
 
 	@Override
-	public String getType() {
-		return _type;
+	public String getVersionString() {
+		return _majorVersion + StringPool.PERIOD + _minorVersion;
 	}
 
 	@Override
@@ -216,6 +216,11 @@ public abstract class BaseDB implements DB {
 	}
 
 	@Override
+	public long increment(String name, int size) {
+		return CounterLocalServiceUtil.increment(name, size);
+	}
+
+	@Override
 	public boolean isSupportsAlterColumnName() {
 		return _SUPPORTS_ALTER_COLUMN_NAME;
 	}
@@ -223,11 +228,6 @@ public abstract class BaseDB implements DB {
 	@Override
 	public boolean isSupportsAlterColumnType() {
 		return _SUPPORTS_ALTER_COLUMN_TYPE;
-	}
-
-	@Override
-	public boolean isSupportsDateMilliseconds() {
-		return _SUPPORTS_DATE_MILLISECONDS;
 	}
 
 	@Override
@@ -272,7 +272,8 @@ public abstract class BaseDB implements DB {
 			s = con.createStatement();
 
 			for (int i = 0; i < sqls.length; i++) {
-				String sql = buildSQL(sqls[i]);
+				String sql = buildSQL(
+					applyMaxStringIndexLengthLimitation(sqls[i]));
 
 				sql = SQLTransformer.transform(sql.trim());
 
@@ -280,8 +281,8 @@ public abstract class BaseDB implements DB {
 					sql = sql.substring(0, sql.length() - 1);
 				}
 
-				if (sql.endsWith("go")) {
-					sql = sql.substring(0, sql.length() - 2);
+				if (sql.endsWith("\ngo")) {
+					sql = sql.substring(0, sql.length() - 3);
 				}
 
 				if (_log.isDebugEnabled()) {
@@ -362,6 +363,8 @@ public abstract class BaseDB implements DB {
 			boolean failOnError)
 		throws IOException, NamingException, SQLException {
 
+		template = applyMaxStringIndexLengthLimitation(template);
+
 		if (evaluate) {
 			try {
 				template = evaluateVM(template.hashCode() + "", template);
@@ -379,7 +382,7 @@ public abstract class BaseDB implements DB {
 			String line = null;
 
 			while ((line = unsyncBufferedReader.readLine()) != null) {
-				if (line.startsWith("##")) {
+				if (line.isEmpty() || line.startsWith("##")) {
 					continue;
 				}
 
@@ -417,6 +420,7 @@ public abstract class BaseDB implements DB {
 				}
 				else {
 					sb.append(line);
+					sb.append(StringPool.NEW_LINE);
 
 					if (line.endsWith(";")) {
 						String sql = sb.toString();
@@ -424,7 +428,7 @@ public abstract class BaseDB implements DB {
 						sb.setIndex(0);
 
 						try {
-							if (!sql.equals("COMMIT_TRANSACTION;")) {
+							if (!sql.equals("COMMIT_TRANSACTION;\n")) {
 								runSQL(connection, sql);
 							}
 							else {
@@ -481,8 +485,9 @@ public abstract class BaseDB implements DB {
 			String template, boolean evaluate, boolean failOnError)
 		throws IOException, NamingException, SQLException {
 
-		runSQLTemplateString(
-			DataAccess.getConnection(), template, evaluate, failOnError);
+		try (Connection connection = DataAccess.getConnection()) {
+			runSQLTemplateString(connection, template, evaluate, failOnError);
+		}
 	}
 
 	@Override
@@ -499,6 +504,8 @@ public abstract class BaseDB implements DB {
 		}
 
 		_supportsStringCaseSensitiveQuery = supportsStringCaseSensitiveQuery;
+
+		SQLTransformer.reloadSQLTransformer();
 	}
 
 	@Override
@@ -524,17 +531,85 @@ public abstract class BaseDB implements DB {
 			}
 		}
 
+		indexesSQL = applyMaxStringIndexLengthLimitation(indexesSQL);
+
 		addIndexes(con, indexesSQL, validIndexNames);
 	}
 
-	protected BaseDB(String type) {
-		_type = type;
+	protected BaseDB(DBType dbType, int majorVersion, int minorVersion) {
+		_dbType = dbType;
+		_majorVersion = majorVersion;
+		_minorVersion = minorVersion;
 
 		String[] actual = getTemplate();
 
 		for (int i = 0; i < TEMPLATE.length; i++) {
 			_templateMap.put(TEMPLATE[i], actual[i]);
 		}
+	}
+
+	protected String applyMaxStringIndexLengthLimitation(String template) {
+		if (!template.contains("[$COLUMN_LENGTH:")) {
+			return template;
+		}
+
+		DBType dbType = getDBType();
+
+		int stringIndexMaxLength = GetterUtil.getInteger(
+			PropsUtil.get(
+				PropsKeys.DATABASE_STRING_INDEX_MAX_LENGTH,
+				new Filter(dbType.getName())),
+			-1);
+
+		String replacement = "\\(" + stringIndexMaxLength + "\\)";
+
+		Matcher matcher = _columnLengthPattern.matcher(template);
+
+		if (stringIndexMaxLength < 0) {
+			if (dbType.equals(DBType.SYBASE)) {
+				replacement = StringPool.BLANK;
+			}
+			else {
+				return matcher.replaceAll(StringPool.BLANK);
+			}
+		}
+
+		boolean remove = false;
+		StringBuffer sb = new StringBuffer();
+
+		while (matcher.find()) {
+			int length = Integer.valueOf(matcher.group(1));
+
+			if (dbType.equals(DBType.SYBASE) && (length > 1250)) {
+				matcher.appendReplacement(sb, "%%REMOVE%%");
+
+				remove = true;
+			}
+			else if (length > stringIndexMaxLength) {
+				matcher.appendReplacement(sb, replacement);
+			}
+			else {
+				matcher.appendReplacement(sb, StringPool.BLANK);
+			}
+		}
+
+		matcher.appendTail(sb);
+
+		String string = sb.toString();
+
+		if (dbType.equals(DBType.SYBASE) && remove) {
+			String[] strings = StringUtil.split(string, StringPool.NEW_LINE);
+
+			for (int i = 0; i < strings.length; i++) {
+				if (strings[i].contains("%%REMOVE%%")) {
+					strings[i] = StringPool.BLANK;
+				}
+			}
+
+			return StringUtil.merge(strings, StringPool.NEW_LINE);
+		}
+
+		return string;
 	}
 
 	protected String[] buildColumnNameTokens(String line) {
@@ -546,9 +621,7 @@ public abstract class BaseDB implements DB {
 			nullable = "not null;";
 		}
 
-		String[] template = {
-			words[1], words[2], words[3], words[4], nullable
-		};
+		String[] template = {words[1], words[2], words[3], words[4], nullable};
 
 		return template;
 	}
@@ -572,9 +645,7 @@ public abstract class BaseDB implements DB {
 			}
 		}
 
-		String[] template = {
-			words[1], words[2], "", words[3], nullable
-		};
+		String[] template = {words[1], words[2], "", words[3], nullable};
 
 		return template;
 	}
@@ -633,6 +704,7 @@ public abstract class BaseDB implements DB {
 						include = replaceTemplate(include, getTemplate());
 
 						sb.append(include);
+
 						sb.append("\n\n");
 					}
 					else {
@@ -645,8 +717,12 @@ public abstract class BaseDB implements DB {
 			template = sb.toString();
 		}
 
-		if (fileName.equals("indexes") && (this instanceof SybaseDB)) {
-			template = removeBooleanIndexes(sqlDir, template);
+		if (fileName.equals("indexes")) {
+			template = applyMaxStringIndexLengthLimitation(template);
+
+			if (getDBType() == DBType.SYBASE) {
+				template = removeBooleanIndexes(sqlDir, template);
+			}
 		}
 
 		return template;
@@ -704,10 +780,14 @@ public abstract class BaseDB implements DB {
 		for (Index index : indexes) {
 			String indexNameUpperCase = StringUtil.toUpperCase(
 				index.getIndexName());
+
 			String indexNameLowerCase = StringUtil.toLowerCase(
 				indexNameUpperCase);
+
 			String tableName = index.getTableName();
+
 			String tableNameLowerCase = StringUtil.toLowerCase(tableName);
+
 			boolean unique = index.isUnique();
 
 			validIndexNames.add(indexNameUpperCase);
@@ -728,7 +808,7 @@ public abstract class BaseDB implements DB {
 				}
 			}
 			else if (!tablesSQLLowerCase.contains(
-						"create table " + tableNameLowerCase + " (")) {
+						CREATE_TABLE + tableNameLowerCase + " (")) {
 
 				continue;
 			}
@@ -783,8 +863,8 @@ public abstract class BaseDB implements DB {
 		StringBundler sb = new StringBundler();
 
 		try (UnsyncBufferedReader unsyncBufferedReader =
-			new UnsyncBufferedReader(
-				new UnsyncStringReader(unsyncStringWriter.toString()))) {
+				new UnsyncBufferedReader(
+					new UnsyncStringReader(unsyncStringWriter.toString()))) {
 
 			String line = null;
 
@@ -792,6 +872,7 @@ public abstract class BaseDB implements DB {
 				line = line.trim();
 
 				sb.append(line);
+
 				sb.append("\n");
 			}
 		}
@@ -834,9 +915,6 @@ public abstract class BaseDB implements DB {
 		if (type == BARE) {
 			return "-bare";
 		}
-		else if (type == SHARDED) {
-			return "-sharded";
-		}
 		else {
 			return StringPool.BLANK;
 		}
@@ -848,14 +926,14 @@ public abstract class BaseDB implements DB {
 		throws SQLException {
 
 		if (_log.isDebugEnabled()) {
-			StringBundler sb = new StringBundler(18);
+			StringBundler sb = new StringBundler(10);
 
 			sb.append("SQL: ");
 			sb.append(sql);
 			sb.append("\nSQL state: ");
 			sb.append(sqle.getSQLState());
 			sb.append("\nVendor: ");
-			sb.append(getType());
+			sb.append(getDBType());
 			sb.append("\nVendor error code: ");
 			sb.append(sqle.getErrorCode());
 			sb.append("\nVendor error message: ");
@@ -892,8 +970,7 @@ public abstract class BaseDB implements DB {
 
 			while ((line = unsyncBufferedReader.readLine()) != null) {
 				if (!line.startsWith(comments)) {
-					line = StringUtil.replace(
-						line, new String[] {"\n", "\t"}, new String[] {"", ""});
+					line = StringUtil.removeChars(line, '\n', '\t');
 
 					if (line.endsWith(";")) {
 						sb.append(line.substring(0, line.length() - 1));
@@ -936,11 +1013,13 @@ public abstract class BaseDB implements DB {
 					String table = line.substring(x + 4, y);
 
 					x = y + 2;
+
 					y = line.indexOf(")", x);
 
 					String[] columns = StringUtil.split(line.substring(x, y));
 
-					x = portalData.indexOf("create table " + table + " (");
+					x = portalData.indexOf(CREATE_TABLE + table + " (");
+
 					y = portalData.indexOf(");", x);
 
 					String portalTableData = portalData.substring(x, y);
@@ -1068,6 +1147,8 @@ public abstract class BaseDB implements DB {
 
 	protected static final String ALTER_TABLE_NAME = "alter_table_name ";
 
+	protected static final String CREATE_TABLE = "create table ";
+
 	protected static final String DROP_INDEX = "drop index";
 
 	protected static final String DROP_PRIMARY_KEY = "drop primary key";
@@ -1090,8 +1171,6 @@ public abstract class BaseDB implements DB {
 
 	private static final boolean _SUPPORTS_ALTER_COLUMN_TYPE = true;
 
-	private static final boolean _SUPPORTS_DATE_MILLISECONDS = true;
-
 	private static final boolean _SUPPORTS_INLINE_DISTINCT = true;
 
 	private static final boolean _SUPPORTS_QUERYING_AFTER_EXCEPTION = true;
@@ -1102,12 +1181,14 @@ public abstract class BaseDB implements DB {
 
 	private static final Log _log = LogFactoryUtil.getLog(BaseDB.class);
 
+	private static final Pattern _columnLengthPattern = Pattern.compile(
+		"\\[\\$COLUMN_LENGTH:(\\d+)\\$\\]");
 	private static final Pattern _templatePattern;
 	private static final Pattern _timestampPattern = Pattern.compile(
 		"SPECIFIC_TIMESTAMP_\\d+");
 
 	static {
-		StringBundler sb = new StringBundler(TEMPLATE.length * 3 - 3);
+		StringBundler sb = new StringBundler(TEMPLATE.length * 5 - 6);
 
 		for (int i = 0; i < TEMPLATE.length; i++) {
 			String variable = TEMPLATE[i];
@@ -1123,16 +1204,18 @@ public abstract class BaseDB implements DB {
 				sb.append("\\b");
 			}
 
-			if (i < (TEMPLATE.length - 1)) {
-				sb.append(StringPool.PIPE);
-			}
+			sb.append(StringPool.PIPE);
 		}
+
+		sb.setIndex(sb.index() - 1);
 
 		_templatePattern = Pattern.compile(sb.toString());
 	}
 
-	private boolean _supportsStringCaseSensitiveQuery;
+	private final DBType _dbType;
+	private final int _majorVersion;
+	private final int _minorVersion;
+	private boolean _supportsStringCaseSensitiveQuery = true;
 	private final Map<String, String> _templateMap = new HashMap<>();
-	private final String _type;
 
 }
