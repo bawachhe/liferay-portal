@@ -34,6 +34,7 @@ import com.liferay.tasks.util.WebKeys;
 import java.util.Locale;
 
 import javax.portlet.PortletRequest;
+import javax.portlet.PortletResponse;
 import javax.portlet.PortletURL;
 
 import javax.servlet.http.HttpServletRequest;
@@ -86,7 +87,9 @@ public class TasksEntryAssetRenderer extends BaseJSPAssetRenderer<TasksEntry> {
 	}
 
 	@Override
-	public String getSummary(Locale locale) {
+	public String getSummary(
+		PortletRequest portletRequest, PortletResponse portletResponse) {
+
 		return _entry.getTitle();
 	}
 
