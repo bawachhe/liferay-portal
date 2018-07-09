@@ -56,7 +56,7 @@ CurrencyConverterConfiguration currencyConverterConfiguration = (CurrencyConvert
 
 String[] symbols = portletPreferences.getValues("symbols", currencyConverterConfiguration.symbols());
 
-Map<String, String> allSymbols = CurrencyConverterUtil.getAllSymbols(request);
+Map<String, String> allSymbols = CurrencyConverterUtil.getAllSymbols(locale);
 %>
 
 <%@ include file="/init-ext.jsp" %>
